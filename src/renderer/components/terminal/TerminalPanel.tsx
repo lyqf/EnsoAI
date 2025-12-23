@@ -10,6 +10,7 @@ interface TerminalTab {
 
 interface TerminalPanelProps {
   cwd?: string;
+  isActive?: boolean;
 }
 
 function createInitialState(): { tabs: TerminalTab[]; activeId: string | null } {
@@ -28,7 +29,7 @@ function getNextName(tabs: TerminalTab[]): string {
   return `Untitled-${max + 1}`;
 }
 
-export function TerminalPanel({ cwd }: TerminalPanelProps) {
+export function TerminalPanel({ cwd, isActive = false }: TerminalPanelProps) {
   const [state, setState] = useState(createInitialState);
   const { tabs, activeId } = state;
   const inputRef = useRef<HTMLInputElement>(null);
@@ -76,18 +77,6 @@ export function TerminalPanel({ cwd }: TerminalPanelProps) {
     });
   }, []);
 
-  // Cmd+T to create new tab
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 't') {
-        e.preventDefault();
-        handleNewTab();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleNewTab]);
-
   const handleCloseTab = useCallback((id: string) => {
     setState((prev) => {
       const newTabs = prev.tabs.filter((t) => t.id !== id);
@@ -109,6 +98,33 @@ export function TerminalPanel({ cwd }: TerminalPanelProps) {
   const handleSelectTab = useCallback((id: string) => {
     setState((prev) => ({ ...prev, activeId: id }));
   }, []);
+
+  // Cmd+T: new tab, Cmd+W: close tab, Cmd+1-9: switch tab
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isActive) return;
+      if ((e.metaKey || e.ctrlKey) && e.key === 't') {
+        e.preventDefault();
+        handleNewTab();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'w') {
+        e.preventDefault();
+        if (activeId) {
+          handleCloseTab(activeId);
+        }
+      }
+      // Cmd+1-9 to switch tabs
+      if ((e.metaKey || e.ctrlKey) && e.key >= '1' && e.key <= '9') {
+        e.preventDefault();
+        const index = Number.parseInt(e.key, 10) - 1;
+        if (index < tabs.length) {
+          handleSelectTab(tabs[index].id);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isActive, activeId, tabs, handleNewTab, handleCloseTab, handleSelectTab]);
 
   const handleStartEdit = useCallback((tab: TerminalTab) => {
     setEditingId(tab.id);

@@ -126,7 +126,7 @@ export function MainContent({
         {/* Chat tab - keep mounted to preserve terminal session */}
         <div className={cn('absolute inset-0', activeTab !== 'chat' && 'invisible')}>
           {repoPath && worktreePath ? (
-            <AgentPanel repoPath={repoPath} cwd={worktreePath} />
+            <AgentPanel repoPath={repoPath} cwd={worktreePath} isActive={activeTab === 'chat'} />
           ) : (
             <div className="flex h-full items-center justify-center text-muted-foreground">
               <p>请先选择一个 Worktree</p>
@@ -135,7 +135,7 @@ export function MainContent({
         </div>
         {/* Terminal tab - keep mounted to preserve shell sessions */}
         <div className={cn('absolute inset-0', activeTab !== 'terminal' && 'invisible')}>
-          <TerminalPanel cwd={worktreePath} />
+          <TerminalPanel cwd={worktreePath} isActive={activeTab === 'terminal'} />
         </div>
         {activeTab === 'file' && <FilePlaceholder />}
         {activeTab === 'source-control' && <SourceControlPlaceholder />}

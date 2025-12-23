@@ -157,44 +157,52 @@ export function ShellTerminal({ cwd, isActive = false, onExit }: ShellTerminalPr
 
   // Handle resize
   useEffect(() => {
-    let resizeTimeout: ReturnType<typeof setTimeout>;
-
     const handleResize = () => {
-      clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(() => {
-        if (fitAddonRef.current && terminalRef.current && ptyIdRef.current) {
-          fitAddonRef.current.fit();
+      if (fitAddonRef.current && terminalRef.current && ptyIdRef.current) {
+        fitAddonRef.current.fit();
+        window.electronAPI.terminal.resize(ptyIdRef.current, {
+          cols: terminalRef.current.cols,
+          rows: terminalRef.current.rows,
+        });
+      }
+    };
+
+    const debouncedResize = (() => {
+      let timeout: ReturnType<typeof setTimeout>;
+      return () => {
+        clearTimeout(timeout);
+        timeout = setTimeout(handleResize, 50);
+      };
+    })();
+
+    window.addEventListener('resize', debouncedResize);
+
+    const observer = new ResizeObserver(debouncedResize);
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+
+    return () => {
+      window.removeEventListener('resize', debouncedResize);
+      observer.disconnect();
+    };
+  }, []);
+
+  // Fit terminal when becoming active (tab switch / panel resize)
+  useEffect(() => {
+    if (isActive && fitAddonRef.current && terminalRef.current && ptyIdRef.current) {
+      // Use rAF to ensure layout is complete
+      requestAnimationFrame(() => {
+        fitAddonRef.current?.fit();
+        if (terminalRef.current && ptyIdRef.current) {
           window.electronAPI.terminal.resize(ptyIdRef.current, {
             cols: terminalRef.current.cols,
             rows: terminalRef.current.rows,
           });
         }
-      }, 50);
-    };
-
-    window.addEventListener('resize', handleResize);
-
-    const observer = new ResizeObserver(handleResize);
-    if (containerRef.current) {
-      observer.observe(containerRef.current);
+      });
     }
-
-    const intersectionObserver = new IntersectionObserver((entries) => {
-      if (entries[0]?.isIntersecting) {
-        handleResize();
-      }
-    });
-    if (containerRef.current) {
-      intersectionObserver.observe(containerRef.current);
-    }
-
-    return () => {
-      clearTimeout(resizeTimeout);
-      window.removeEventListener('resize', handleResize);
-      observer.disconnect();
-      intersectionObserver.disconnect();
-    };
-  }, []);
+  }, [isActive]);
 
   return (
     <div className="relative h-full w-full" style={{ backgroundColor: settings.theme.background }}>

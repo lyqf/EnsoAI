@@ -86,15 +86,6 @@ export default function App() {
         case 'open-action-panel':
           setActionPanelOpen(true);
           break;
-        case 'close-window':
-          // Close any open dialog (check actionPanel first, then settings)
-          setActionPanelOpen((prev) => {
-            if (prev) return false;
-            // If actionPanel wasn't open, try closing settings
-            setSettingsOpen((sPrev) => (sPrev ? false : sPrev));
-            return prev;
-          });
-          break;
       }
     });
     return cleanup;

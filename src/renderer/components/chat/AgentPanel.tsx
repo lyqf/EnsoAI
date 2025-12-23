@@ -6,6 +6,7 @@ import { type Session, SessionBar } from './SessionBar';
 interface AgentPanelProps {
   repoPath: string; // repository path (workspace identifier)
   cwd: string; // current worktree path
+  isActive?: boolean;
 }
 
 const SESSIONS_STORAGE_PREFIX = 'enso-chat-sessions:';
@@ -85,7 +86,7 @@ function saveSessions(
   );
 }
 
-export function AgentPanel({ repoPath, cwd }: AgentPanelProps) {
+export function AgentPanel({ repoPath, cwd, isActive = false }: AgentPanelProps) {
   const { agentSettings, customAgents } = useSettingsStore();
   const defaultAgentId = useMemo(() => getDefaultAgentId(agentSettings), [agentSettings]);
 
@@ -223,22 +224,49 @@ export function AgentPanel({ repoPath, cwd }: AgentPanelProps) {
     [cwd, customAgents]
   );
 
+  // Cmd+T: new session, Cmd+W: close session, Cmd+1-9: switch session
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isActive) return;
+      if ((e.metaKey || e.ctrlKey) && e.key === 't') {
+        e.preventDefault();
+        handleNewSession();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'w') {
+        e.preventDefault();
+        if (activeSessionId) {
+          handleCloseSession(activeSessionId);
+        }
+      }
+      // Cmd+1-9 to switch sessions
+      if ((e.metaKey || e.ctrlKey) && e.key >= '1' && e.key <= '9') {
+        e.preventDefault();
+        const index = Number.parseInt(e.key, 10) - 1;
+        if (index < currentWorktreeSessions.length) {
+          handleSelectSession(currentWorktreeSessions[index].id);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isActive, activeSessionId, currentWorktreeSessions, handleNewSession, handleCloseSession, handleSelectSession]);
+
   return (
     <div className="relative h-full w-full">
       {/* Render all terminals across all worktrees, keep them mounted */}
       {allSessions.map((session) => {
-        const isActive = session.cwd === cwd && activeSessionId === session.id;
+        const isSessionActive = session.cwd === cwd && activeSessionId === session.id;
         return (
           <div
             key={session.id}
-            className={isActive ? 'h-full w-full' : 'invisible absolute inset-0'}
+            className={isSessionActive ? 'h-full w-full' : 'invisible absolute inset-0'}
           >
             <AgentTerminal
               cwd={session.cwd}
               sessionId={session.id}
               agentCommand={session.agentCommand || 'claude'}
               initialized={session.initialized}
-              isActive={isActive}
+              isActive={isSessionActive}
               onInitialized={() => handleInitialized(session.id)}
               onExit={() => handleCloseSession(session.id)}
             />

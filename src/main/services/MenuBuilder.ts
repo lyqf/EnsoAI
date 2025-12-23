@@ -1,6 +1,6 @@
 import { type BrowserWindow, Menu, app, shell } from 'electron';
 
-export type MenuAction = 'open-settings' | 'close-window' | 'toggle-devtools' | 'open-action-panel';
+export type MenuAction = 'open-settings' | 'toggle-devtools' | 'open-action-panel';
 
 export function buildAppMenu(mainWindow: BrowserWindow): Menu {
   const isMac = process.platform === 'darwin';
@@ -50,11 +50,6 @@ export function buildAppMenu(mainWindow: BrowserWindow): Menu {
               { type: 'separator' as const },
             ]
           : []),
-        {
-          label: '关闭窗口',
-          accelerator: 'CommandOrControl+W',
-          click: () => sendAction('close-window'),
-        },
         ...(isMac ? [] : [{ type: 'separator' as const }, { role: 'quit' as const }]),
       ],
     },
