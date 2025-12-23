@@ -184,14 +184,16 @@ function AppearanceSettings() {
             className={cn(
               'flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-colors',
               theme === option.value
-                ? 'border-primary bg-accent'
+                ? 'border-primary bg-accent text-accent-foreground'
                 : 'border-transparent bg-muted/50 hover:bg-muted'
             )}
           >
             <div
               className={cn(
                 'flex h-10 w-10 items-center justify-center rounded-full',
-                theme === option.value ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                theme === option.value
+                  ? 'bg-accent-foreground/20 text-accent-foreground'
+                  : 'bg-muted'
               )}
             >
               <option.icon className="h-5 w-5" />

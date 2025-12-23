@@ -78,15 +78,14 @@ export function WorktreePanel({
       >
         {/* Expand workspace button when collapsed */}
         {workspaceCollapsed && onExpandWorkspace && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 no-drag"
+          <button
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-md no-drag text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
             onClick={onExpandWorkspace}
             title="展开 Workspace"
           >
             <FolderOpen className="h-4 w-4" />
-          </Button>
+          </button>
         )}
         {/* Create worktree button */}
         <CreateWorktreeDialog
@@ -95,32 +94,34 @@ export function WorktreePanel({
           isLoading={isCreating}
           onSubmit={onCreateWorktree}
           trigger={
-            <Button variant="ghost" size="icon" className="h-8 w-8 no-drag" title="新建 Worktree">
+            <button
+              type="button"
+              className="flex h-8 w-8 items-center justify-center rounded-md no-drag text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
+              title="新建 Worktree"
+            >
               <Plus className="h-4 w-4" />
-            </Button>
+            </button>
           }
         />
         {/* Refresh button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 no-drag"
+        <button
+          type="button"
+          className="flex h-8 w-8 items-center justify-center rounded-md no-drag text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
           onClick={onRefresh}
           title="刷新"
         >
           <RefreshCw className="h-4 w-4" />
-        </Button>
+        </button>
         {/* Collapse button */}
         {onCollapse && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 no-drag"
+          <button
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-md no-drag text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
             onClick={onCollapse}
             title="折叠"
           >
             <PanelLeftClose className="h-4 w-4" />
-          </Button>
+          </button>
         )}
       </div>
 

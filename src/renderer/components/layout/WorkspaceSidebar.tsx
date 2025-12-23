@@ -1,4 +1,3 @@
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { FolderGit2, PanelLeftClose, Plus, Search, Settings } from 'lucide-react';
 import { useState } from 'react';
@@ -33,15 +32,14 @@ export function WorkspaceSidebar({
       {/* Header */}
       <div className="flex h-12 items-center justify-end gap-1 border-b px-3 drag-region">
         {onCollapse && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 no-drag"
+          <button
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-md no-drag text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
             onClick={onCollapse}
             title="折叠"
           >
             <PanelLeftClose className="h-4 w-4" />
-          </Button>
+          </button>
         )}
       </div>
 
@@ -111,18 +109,21 @@ export function WorkspaceSidebar({
       {/* Footer */}
       <div className="shrink-0 border-t p-2">
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="flex-1 justify-start gap-2"
+          <button
+            type="button"
+            className="flex h-8 flex-1 items-center justify-start gap-2 rounded-md px-3 text-sm text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
             onClick={onAddRepository}
           >
             <Plus className="h-4 w-4" />
             Add Repository
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onOpenSettings}>
+          </button>
+          <button
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
+            onClick={onOpenSettings}
+          >
             <Settings className="h-4 w-4" />
-          </Button>
+          </button>
         </div>
       </div>
     </aside>

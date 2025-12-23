@@ -206,21 +206,6 @@ export function SessionBar({
                     : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
                 )}
               >
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onCloseSession(session.id);
-                  }}
-                  className={cn(
-                    'flex h-4 w-4 items-center justify-center rounded-full transition-colors',
-                    'hover:bg-destructive/20 hover:text-destructive',
-                    activeSessionId !== session.id && 'opacity-0 group-hover:opacity-100'
-                  )}
-                >
-                  <X className="h-3 w-3" />
-                </button>
-                <Sparkles className="h-3.5 w-3.5" />
                 {editingId === session.id ? (
                   <input
                     ref={inputRef}
@@ -235,6 +220,20 @@ export function SessionBar({
                 ) : (
                   <span>{session.name}</span>
                 )}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCloseSession(session.id);
+                  }}
+                  className={cn(
+                    'flex h-4 w-4 items-center justify-center rounded-full transition-colors',
+                    'hover:bg-destructive/20 hover:text-destructive',
+                    activeSessionId !== session.id && 'opacity-0 group-hover:opacity-100'
+                  )}
+                >
+                  <X className="h-3 w-3" />
+                </button>
               </button>
             ))}
 
@@ -243,7 +242,7 @@ export function SessionBar({
             <button
               type="button"
               onClick={onNewSession}
-              className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
             >
               <Plus className="h-4 w-4" />
             </button>
