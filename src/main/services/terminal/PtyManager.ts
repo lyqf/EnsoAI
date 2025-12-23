@@ -1,11 +1,28 @@
-import * as pty from 'node-pty';
-import { detectShell } from './ShellDetector';
-import type { TerminalCreateOptions } from '@shared/types';
+import type { TerminalCreateOptions } from "@shared/types";
+import * as pty from "node-pty";
+import { detectShell } from "./ShellDetector";
 
 interface PtySession {
   pty: pty.IPty;
   onData: (data: string) => void;
   onExit?: (exitCode: number, signal?: number) => void;
+}
+
+// macOS GUI apps don't inherit shell PATH, add common paths
+function getEnhancedPath(): string {
+  const currentPath = process.env.PATH || "";
+  const additionalPaths = [
+    "/usr/local/bin",
+    "/opt/homebrew/bin",
+    "/opt/homebrew/sbin",
+    `${process.env.HOME}/.nvm/versions/node/current/bin`,
+    `${process.env.HOME}/.npm-global/bin`,
+    `${process.env.HOME}/.local/bin`,
+  ];
+  const allPaths = [
+    ...new Set([...additionalPaths, ...currentPath.split(":")]),
+  ];
+  return allPaths.join(":");
 }
 
 export class PtyManager {
@@ -19,20 +36,21 @@ export class PtyManager {
   ): string {
     const id = `pty-${++this.counter}`;
     const shell = options.shell || detectShell();
-    const cwd = options.cwd || process.env.HOME || '/';
+    const cwd = options.cwd || process.env.HOME || "/";
 
     const args = options.args || [];
 
     const ptyProcess = pty.spawn(shell, args, {
-      name: 'xterm-256color',
+      name: "xterm-256color",
       cols: options.cols || 80,
       rows: options.rows || 24,
       cwd,
       env: {
         ...process.env,
         ...options.env,
-        TERM: 'xterm-256color',
-        COLORTERM: 'truecolor',
+        PATH: getEnhancedPath(),
+        TERM: "xterm-256color",
+        COLORTERM: "truecolor",
       } as Record<string, string>,
     });
 
