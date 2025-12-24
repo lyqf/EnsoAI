@@ -112,6 +112,7 @@ export function useXterm({
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const settings = useTerminalSettings();
+  const terminalRenderer = useSettingsStore((s) => s.terminalRenderer);
   const navigateToFile = useNavigationStore((s) => s.navigateToFile);
   const cwdRef = useRef(cwd);
   cwdRef.current = cwd;
@@ -129,10 +130,14 @@ export function useXterm({
   const hasBeenActivatedRef = useRef(false);
   const [isLoading, setIsLoading] = useState(false);
   const hasReceivedDataRef = useRef(false);
+  // Memoize command key to avoid dependency array issues
+  const commandKey = useMemo(
+    () => `${command.shell}:${command.args.join(' ')}`,
+    [command.shell, command.args]
+  );
   // rAF write buffer for smooth rendering
   const writeBufferRef = useRef('');
   const isFlushPendingRef = useRef(false);
-  const webglAddonRef = useRef<WebglAddon | null>(null);
 
   const write = useCallback((data: string) => {
     if (ptyIdRef.current) {
@@ -220,19 +225,18 @@ export function useXterm({
     terminal.open(containerRef.current);
     fitAddon.fit();
 
-    // These addons must be loaded after open()
-    // Try to use WebGL renderer, fallback to canvas if it fails
-    try {
-      const webglAddon = new WebglAddon();
-      webglAddon.onContextLoss(() => {
-        // WebGL context lost, dispose and fallback to canvas
-        webglAddon.dispose();
-        webglAddonRef.current = null;
-      });
-      terminal.loadAddon(webglAddon);
-      webglAddonRef.current = webglAddon;
-    } catch (error) {
-      console.warn('WebGL addon failed to load, using canvas renderer:', error);
+    // Load WebGL renderer if enabled (better performance but may have artifacts)
+    // Default to canvas renderer for stability
+    if (terminalRenderer === 'webgl') {
+      try {
+        const webglAddon = new WebglAddon();
+        webglAddon.onContextLoss(() => {
+          webglAddon.dispose();
+        });
+        terminal.loadAddon(webglAddon);
+      } catch (error) {
+        console.warn('WebGL addon failed to load, using canvas renderer:', error);
+      }
     }
     terminal.loadAddon(new LigaturesAddon());
 
@@ -407,7 +411,7 @@ export function useXterm({
       terminal.writeln(`\x1b[31mFailed to start terminal.\x1b[0m`);
       terminal.writeln(`\x1b[33mError: ${error}\x1b[0m`);
     }
-  }, [cwd, command.shell, command.args.join(' ')]);
+  }, [cwd, commandKey, terminalRenderer]);
 
   // Lazy initialization: only init when first activated
   useEffect(() => {
@@ -491,21 +495,17 @@ export function useXterm({
 
   // Fit when becoming active
   useEffect(() => {
-    if (isActive) {
+    if (isActive && terminalRef.current) {
       requestAnimationFrame(() => fit());
     }
   }, [isActive, fit]);
 
   // Handle window visibility change to refresh terminal rendering
-  // Note: Refreshes ALL terminal instances (including hidden ones) to fix rendering artifacts
-  // when using 'invisible' CSS class for session management
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden && terminalRef.current) {
-        // Window became visible again, refresh terminal
         requestAnimationFrame(() => {
           terminalRef.current?.refresh(0, terminalRef.current.rows - 1);
-          // Only fit if this terminal is currently active to avoid resize conflicts
           if (isActive) {
             fit();
           }
@@ -518,14 +518,11 @@ export function useXterm({
   }, [isActive, fit]);
 
   // Handle app focus/blur events (macOS app switching)
-  // Note: Refreshes ALL terminal instances (including hidden ones) to fix rendering artifacts
-  // when using 'invisible' CSS class for session management
   useEffect(() => {
     const handleFocus = () => {
       if (terminalRef.current) {
         requestAnimationFrame(() => {
           terminalRef.current?.refresh(0, terminalRef.current.rows - 1);
-          // Only fit if this terminal is currently active to avoid resize conflicts
           if (isActive) {
             fit();
           }
