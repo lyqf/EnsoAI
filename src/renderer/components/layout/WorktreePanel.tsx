@@ -91,19 +91,29 @@ export function WorktreePanel({
   );
 
   const fetchDiffStats = useWorktreeActivityStore((s) => s.fetchDiffStats);
+  const activities = useWorktreeActivityStore((s) => s.activities);
 
-  // Fetch diff stats on mount and periodically (every 10 seconds)
+  // Fetch diff stats only for worktrees with active sessions, periodically (every 10 seconds)
   useEffect(() => {
     if (worktrees.length === 0) return;
-    const paths = worktrees.map((wt) => wt.path);
+    // Only fetch for worktrees that have active agent or terminal sessions
+    const activePaths = worktrees
+      .filter((wt) => {
+        const activity = activities[wt.path];
+        return activity && (activity.agentCount > 0 || activity.terminalCount > 0);
+      })
+      .map((wt) => wt.path);
+
+    if (activePaths.length === 0) return;
+
     // Initial fetch
-    fetchDiffStats(paths);
+    fetchDiffStats(activePaths);
     // Periodic refresh
     const interval = setInterval(() => {
-      fetchDiffStats(paths);
+      fetchDiffStats(activePaths);
     }, 10000);
     return () => clearInterval(interval);
-  }, [worktrees, fetchDiffStats]);
+  }, [worktrees, activities, fetchDiffStats]);
 
   return (
     <aside className="flex h-full w-full flex-col border-r bg-background">
@@ -448,8 +458,8 @@ function WorktreeItem({ worktree, isActive, onClick, onDelete }: WorktreeItemPro
           {worktree.path}
         </div>
 
-        {/* Activity counts and diff stats */}
-        {(hasActivity || hasDiffStats) && (
+        {/* Activity counts and diff stats (only shown when has active sessions) */}
+        {hasActivity && (
           <div className="flex items-center gap-3 pl-6 text-xs text-muted-foreground">
             {activity.agentCount > 0 && (
               <span className="flex items-center gap-1">
