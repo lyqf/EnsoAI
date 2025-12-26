@@ -1,0 +1,318 @@
+import { Keyboard, X } from 'lucide-react';
+import * as React from 'react';
+import { Button } from '@/components/ui/button';
+import { useI18n } from '@/i18n';
+import { codeToKey } from '@/lib/keybinding';
+import { cn } from '@/lib/utils';
+import { type TerminalKeybinding, useSettingsStore } from '@/stores/settings';
+
+// KeybindingInput component for capturing keyboard shortcuts
+export function KeybindingInput({
+  value,
+  onChange,
+}: {
+  value: TerminalKeybinding;
+  onChange: (binding: TerminalKeybinding) => void;
+}) {
+  const { t } = useI18n();
+  const [isRecording, setIsRecording] = React.useState(false);
+
+  const formatKeybinding = (binding: TerminalKeybinding): string => {
+    const parts: string[] = [];
+    if (binding.ctrl) parts.push('Ctrl');
+    if (binding.alt) parts.push('Alt');
+    if (binding.shift) parts.push('Shift');
+    if (binding.meta) parts.push('Cmd');
+    parts.push(binding.key.toUpperCase());
+    return parts.join(' + ');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!isRecording) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Ignore modifier-only keys
+    if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
+
+    // Use e.code to get the physical key (avoids Option key special chars on macOS)
+    const key = codeToKey(e.code) || e.key.toLowerCase();
+
+    // Record exactly what the user pressed
+    const newBinding: TerminalKeybinding = {
+      key,
+    };
+
+    // Only set modifier keys if they are actually pressed
+    if (e.ctrlKey && !e.metaKey) newBinding.ctrl = true;
+    if (e.altKey) newBinding.alt = true;
+    if (e.shiftKey) newBinding.shift = true;
+    if (e.metaKey) newBinding.meta = true;
+
+    onChange(newBinding);
+    setIsRecording(false);
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <div
+        className={cn(
+          'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background',
+          'focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2',
+          isRecording && 'ring-2 ring-ring ring-offset-2'
+        )}
+        onClick={() => setIsRecording(true)}
+        onKeyDown={handleKeyDown}
+        tabIndex={0}
+        role="button"
+        data-keybinding-recording={isRecording ? '' : undefined}
+      >
+        {isRecording ? (
+          <span className="flex items-center gap-2 text-muted-foreground">
+            <Keyboard className="h-4 w-4" />
+            {t('Press a shortcut...')}
+          </span>
+        ) : (
+          <span className="flex items-center gap-2">
+            <Keyboard className="h-4 w-4" />
+            {formatKeybinding(value)}
+          </span>
+        )}
+      </div>
+      {isRecording && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsRecording(false);
+          }}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
+  );
+}
+
+// Keybindings Settings Component
+export function KeybindingsSettings() {
+  const {
+    terminalKeybindings,
+    setTerminalKeybindings,
+    mainTabKeybindings,
+    setMainTabKeybindings,
+    agentKeybindings,
+    setAgentKeybindings,
+    sourceControlKeybindings,
+    setSourceControlKeybindings,
+  } = useSettingsStore();
+  const { t } = useI18n();
+
+  return (
+    <div className="space-y-6">
+      {/* Main Tab Switching */}
+      <div>
+        <h3 className="text-lg font-medium">{t('Main tab switching')}</h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          {t('Set global main tab shortcuts (Cmd on macOS, Win on Windows)')}
+        </p>
+        <div className="space-y-3">
+          <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+            <span className="text-sm">{t('Switch to Agent')}</span>
+            <KeybindingInput
+              value={mainTabKeybindings.switchToAgent}
+              onChange={(binding) => {
+                setMainTabKeybindings({
+                  ...mainTabKeybindings,
+                  switchToAgent: binding,
+                });
+              }}
+            />
+          </div>
+          <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+            <span className="text-sm">{t('Switch to File')}</span>
+            <KeybindingInput
+              value={mainTabKeybindings.switchToFile}
+              onChange={(binding) => {
+                setMainTabKeybindings({
+                  ...mainTabKeybindings,
+                  switchToFile: binding,
+                });
+              }}
+            />
+          </div>
+          <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+            <span className="text-sm">{t('Switch to Terminal')}</span>
+            <KeybindingInput
+              value={mainTabKeybindings.switchToTerminal}
+              onChange={(binding) => {
+                setMainTabKeybindings({
+                  ...mainTabKeybindings,
+                  switchToTerminal: binding,
+                });
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Agent Session Management */}
+      <div className="border-t pt-6">
+        <h3 className="text-lg font-medium">{t('Agent sessions')}</h3>
+        <p className="text-sm text-muted-foreground mb-4">{t('Agent session shortcuts')}</p>
+        <div className="space-y-3">
+          <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+            <span className="text-sm">{t('New Session')}</span>
+            <KeybindingInput
+              value={agentKeybindings.newSession}
+              onChange={(binding) => {
+                setAgentKeybindings({
+                  ...agentKeybindings,
+                  newSession: binding,
+                });
+              }}
+            />
+          </div>
+          <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+            <span className="text-sm">{t('Close Session')}</span>
+            <KeybindingInput
+              value={agentKeybindings.closeSession}
+              onChange={(binding) => {
+                setAgentKeybindings({
+                  ...agentKeybindings,
+                  closeSession: binding,
+                });
+              }}
+            />
+          </div>
+          <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+            <span className="text-sm">{t('Next Session')}</span>
+            <KeybindingInput
+              value={agentKeybindings.nextSession}
+              onChange={(binding) => {
+                setAgentKeybindings({
+                  ...agentKeybindings,
+                  nextSession: binding,
+                });
+              }}
+            />
+          </div>
+          <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+            <span className="text-sm">{t('Previous Session')}</span>
+            <KeybindingInput
+              value={agentKeybindings.prevSession}
+              onChange={(binding) => {
+                setAgentKeybindings({
+                  ...agentKeybindings,
+                  prevSession: binding,
+                });
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Terminal Shortcuts */}
+      <div className="border-t pt-6">
+        <h3 className="text-lg font-medium">{t('Terminal')}</h3>
+        <p className="text-sm text-muted-foreground mb-4">{t('Terminal shortcuts')}</p>
+        <div className="space-y-3">
+          <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+            <span className="text-sm">{t('New Tab')}</span>
+            <KeybindingInput
+              value={terminalKeybindings.newTab}
+              onChange={(binding) => {
+                setTerminalKeybindings({
+                  ...terminalKeybindings,
+                  newTab: binding,
+                });
+              }}
+            />
+          </div>
+          <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+            <span className="text-sm">{t('Close Tab')}</span>
+            <KeybindingInput
+              value={terminalKeybindings.closeTab}
+              onChange={(binding) => {
+                setTerminalKeybindings({
+                  ...terminalKeybindings,
+                  closeTab: binding,
+                });
+              }}
+            />
+          </div>
+          <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+            <span className="text-sm">{t('Next Tab')}</span>
+            <KeybindingInput
+              value={terminalKeybindings.nextTab}
+              onChange={(binding) => {
+                setTerminalKeybindings({
+                  ...terminalKeybindings,
+                  nextTab: binding,
+                });
+              }}
+            />
+          </div>
+          <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+            <span className="text-sm">{t('Previous Tab')}</span>
+            <KeybindingInput
+              value={terminalKeybindings.prevTab}
+              onChange={(binding) => {
+                setTerminalKeybindings({
+                  ...terminalKeybindings,
+                  prevTab: binding,
+                });
+              }}
+            />
+          </div>
+          <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+            <span className="text-sm">{t('Clear terminal')}</span>
+            <KeybindingInput
+              value={terminalKeybindings.clear}
+              onChange={(binding) => {
+                setTerminalKeybindings({
+                  ...terminalKeybindings,
+                  clear: binding,
+                });
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Source Control */}
+      <div className="border-t pt-6">
+        <h3 className="text-lg font-medium">{t('Source Control')}</h3>
+        <p className="text-sm text-muted-foreground mb-4">{t('Diff navigation shortcuts')}</p>
+        <div className="space-y-3">
+          <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+            <span className="text-sm">{t('Previous change')}</span>
+            <KeybindingInput
+              value={sourceControlKeybindings.prevDiff}
+              onChange={(binding) => {
+                setSourceControlKeybindings({
+                  ...sourceControlKeybindings,
+                  prevDiff: binding,
+                });
+              }}
+            />
+          </div>
+          <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+            <span className="text-sm">{t('Next change')}</span>
+            <KeybindingInput
+              value={sourceControlKeybindings.nextDiff}
+              onChange={(binding) => {
+                setSourceControlKeybindings({
+                  ...sourceControlKeybindings,
+                  nextDiff: binding,
+                });
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

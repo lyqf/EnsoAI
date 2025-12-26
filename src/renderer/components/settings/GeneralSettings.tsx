@@ -1,0 +1,304 @@
+import type { Locale } from '@shared/i18n';
+import type { ShellInfo } from '@shared/types';
+import * as React from 'react';
+import {
+  Select,
+  SelectItem,
+  SelectPopup,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { useI18n } from '@/i18n';
+import { type TerminalRenderer, useSettingsStore } from '@/stores/settings';
+
+export function GeneralSettings() {
+  const {
+    language,
+    setLanguage,
+    terminalRenderer,
+    setTerminalRenderer,
+    terminalScrollback,
+    setTerminalScrollback,
+    shellConfig,
+    setShellConfig,
+    wslEnabled,
+    setWslEnabled,
+    agentNotificationEnabled,
+    setAgentNotificationEnabled,
+    agentNotificationDelay,
+    setAgentNotificationDelay,
+    agentNotificationEnterDelay,
+    setAgentNotificationEnterDelay,
+  } = useSettingsStore();
+  const { t, locale } = useI18n();
+
+  const numberFormatter = React.useMemo(
+    () => new Intl.NumberFormat(locale === 'zh' ? 'zh-CN' : 'en-US'),
+    [locale]
+  );
+
+  const rendererOptions = React.useMemo(
+    () => [
+      { value: 'webgl', label: 'WebGL', description: t('Best performance (recommended)') },
+      { value: 'canvas', label: 'Canvas', description: t('Good compatibility') },
+      { value: 'dom', label: 'DOM', description: t('Basic, lower performance') },
+    ],
+    [t]
+  );
+
+  const scrollbackOptions = React.useMemo(
+    () =>
+      [1000, 5000, 10000, 20000, 50000].map((value) => ({
+        value,
+        label: t('{{count}} lines', { count: numberFormatter.format(value) }),
+      })),
+    [t, numberFormatter]
+  );
+
+  const notificationDelayOptions = React.useMemo(
+    () =>
+      [1, 2, 3, 5, 10].map((value) => ({
+        value,
+        label: t('{{count}} seconds', { count: value }),
+      })),
+    [t]
+  );
+
+  const enterDelayOptions = React.useMemo(
+    () => [
+      { value: 0, label: t('Disabled') },
+      ...[1, 2, 3, 5].map((value) => ({
+        value,
+        label: t('{{count}} seconds', { count: value }),
+      })),
+    ],
+    [t]
+  );
+
+  const [shells, setShells] = React.useState<ShellInfo[]>([]);
+  const [loadingShells, setLoadingShells] = React.useState(true);
+  const isWindows = window.electronAPI?.env.platform === 'win32';
+
+  React.useEffect(() => {
+    window.electronAPI.shell.detect().then((detected) => {
+      setShells(detected);
+      setLoadingShells(false);
+    });
+  }, []);
+
+  const availableShells = shells.filter((s) => s.available);
+  const currentShell = shells.find((s) => s.id === shellConfig.shellType);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-medium">{t('Language')}</h3>
+        <p className="text-sm text-muted-foreground">{t('Choose display language')}</p>
+      </div>
+
+      {/* Language */}
+      <div className="grid grid-cols-[100px_1fr] items-start gap-4">
+        <span className="text-sm font-medium mt-2">{t('Language')}</span>
+        <div className="space-y-1.5">
+          <Select value={language} onValueChange={(v) => setLanguage(v as Locale)}>
+            <SelectTrigger className="w-48">
+              <SelectValue>{language === 'zh' ? t('Chinese') : t('English')}</SelectValue>
+            </SelectTrigger>
+            <SelectPopup>
+              <SelectItem value="en">{t('English')}</SelectItem>
+              <SelectItem value="zh">{t('Chinese')}</SelectItem>
+            </SelectPopup>
+          </Select>
+        </div>
+      </div>
+
+      <div className="border-t pt-4">
+        <h3 className="text-lg font-medium">{t('Terminal')}</h3>
+        <p className="text-sm text-muted-foreground">
+          {t('Terminal renderer and performance settings')}
+        </p>
+      </div>
+
+      {/* Shell */}
+      <div className="grid grid-cols-[100px_1fr] items-start gap-4">
+        <span className="text-sm font-medium mt-2">{t('Shell')}</span>
+        <div className="space-y-1.5">
+          {loadingShells ? (
+            <div className="flex h-10 items-center">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground" />
+            </div>
+          ) : (
+            <Select
+              value={shellConfig.shellType}
+              onValueChange={(v) => setShellConfig({ ...shellConfig, shellType: v as never })}
+            >
+              <SelectTrigger className="w-64">
+                <SelectValue>{currentShell?.name || shellConfig.shellType}</SelectValue>
+              </SelectTrigger>
+              <SelectPopup>
+                {availableShells.map((shell) => (
+                  <SelectItem key={shell.id} value={shell.id}>
+                    <div className="flex items-center gap-2">
+                      <span>{shell.name}</span>
+                      {shell.isWsl && (
+                        <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-xs text-blue-600 dark:text-blue-400">
+                          WSL
+                        </span>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectPopup>
+            </Select>
+          )}
+          <p className="text-xs text-muted-foreground">{t('Apply on new terminals')}</p>
+        </div>
+      </div>
+
+      {/* WSL Settings (Windows only) */}
+      {isWindows && (
+        <div className="grid grid-cols-[100px_1fr] items-center gap-4">
+          <span className="text-sm font-medium">{t('WSL detection')}</span>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">{t('Auto-detect agent CLI in WSL')}</p>
+            <Switch checked={wslEnabled} onCheckedChange={setWslEnabled} />
+          </div>
+        </div>
+      )}
+
+      {/* Renderer */}
+      <div className="grid grid-cols-[100px_1fr] items-start gap-4">
+        <span className="text-sm font-medium mt-2">{t('Renderer')}</span>
+        <div className="space-y-1.5">
+          <Select
+            value={terminalRenderer}
+            onValueChange={(v) => setTerminalRenderer(v as TerminalRenderer)}
+          >
+            <SelectTrigger className="w-48">
+              <SelectValue>
+                {rendererOptions.find((o) => o.value === terminalRenderer)?.label}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectPopup>
+              {rendererOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectPopup>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            {rendererOptions.find((o) => o.value === terminalRenderer)?.description}
+          </p>
+          <p className="text-xs text-muted-foreground">{t('Apply on new terminals or restart')}</p>
+        </div>
+      </div>
+
+      {/* Scrollback */}
+      <div className="grid grid-cols-[100px_1fr] items-start gap-4">
+        <span className="text-sm font-medium mt-2">{t('Terminal scrollback')}</span>
+        <div className="space-y-1.5">
+          <Select
+            value={String(terminalScrollback)}
+            onValueChange={(v) => setTerminalScrollback(Number(v))}
+          >
+            <SelectTrigger className="w-48">
+              <SelectValue>
+                {scrollbackOptions.find((o) => o.value === terminalScrollback)?.label ??
+                  t('{{count}} lines', { count: numberFormatter.format(terminalScrollback) })}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectPopup>
+              {scrollbackOptions.map((opt) => (
+                <SelectItem key={opt.value} value={String(opt.value)}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectPopup>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            {t('History lines in the terminal. Higher values use more memory.')}
+          </p>
+          <p className="text-xs text-muted-foreground">{t('Apply on new terminals only')}</p>
+        </div>
+      </div>
+
+      {/* Agent Notification Section */}
+      <div className="pt-4 border-t">
+        <h3 className="text-lg font-medium">{t('Agent Notifications')}</h3>
+        <p className="text-sm text-muted-foreground">{t('Stop output notification')}</p>
+      </div>
+
+      {/* Notification Enable */}
+      <div className="grid grid-cols-[100px_1fr] items-center gap-4">
+        <span className="text-sm font-medium">{t('Enable notifications')}</span>
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">{t('Notifications when agent is idle')}</p>
+          <Switch
+            checked={agentNotificationEnabled}
+            onCheckedChange={setAgentNotificationEnabled}
+          />
+        </div>
+      </div>
+
+      {/* Notification Delay */}
+      <div className="grid grid-cols-[100px_1fr] items-start gap-4">
+        <span className="text-sm font-medium mt-2">{t('Idle time')}</span>
+        <div className="space-y-1.5">
+          <Select
+            value={String(agentNotificationDelay)}
+            onValueChange={(v) => setAgentNotificationDelay(Number(v))}
+            disabled={!agentNotificationEnabled}
+          >
+            <SelectTrigger className="w-48">
+              <SelectValue>
+                {notificationDelayOptions.find((o) => o.value === agentNotificationDelay)?.label ??
+                  t('{{count}} seconds', { count: agentNotificationDelay })}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectPopup>
+              {notificationDelayOptions.map((opt) => (
+                <SelectItem key={opt.value} value={String(opt.value)}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectPopup>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            {t('How long to wait before notifying after the agent stops output.')}
+          </p>
+        </div>
+      </div>
+
+      {/* Enter Delay */}
+      <div className="grid grid-cols-[100px_1fr] items-start gap-4">
+        <span className="text-sm font-medium mt-2">{t('Enter delay')}</span>
+        <div className="space-y-1.5">
+          <Select
+            value={String(agentNotificationEnterDelay)}
+            onValueChange={(v) => setAgentNotificationEnterDelay(Number(v))}
+            disabled={!agentNotificationEnabled}
+          >
+            <SelectTrigger className="w-48">
+              <SelectValue>
+                {enterDelayOptions.find((o) => o.value === agentNotificationEnterDelay)?.label ??
+                  t('{{count}} seconds', { count: agentNotificationEnterDelay })}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectPopup>
+              {enterDelayOptions.map((opt) => (
+                <SelectItem key={opt.value} value={String(opt.value)}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectPopup>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            {t('How long to wait after pressing Enter before starting idle timer.')}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
