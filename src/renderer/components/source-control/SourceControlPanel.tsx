@@ -296,7 +296,7 @@ export function SourceControlPanel({
         await commitMutation.mutateAsync({ workdir: rootPath, message });
         toastManager.add({
           title: t('Commit successful'),
-          description: t('Committed {count} files', { count: staged.length }),
+          description: t('Committed {{count}} files', { count: staged.length }),
           type: 'success',
           timeout: 3000,
         });

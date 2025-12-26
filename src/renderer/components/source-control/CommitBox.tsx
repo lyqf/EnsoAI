@@ -57,7 +57,7 @@ export function CommitBox({ stagedCount, onCommit, isCommitting = false }: Commi
         {/* Staged count */}
         <span className="text-xs text-muted-foreground">
           {stagedCount > 0
-            ? t('{count} staged changes', { count: stagedCount })
+            ? t('{{count}} staged changes', { count: stagedCount })
             : t('No staged changes')}
         </span>
 

@@ -54,6 +54,7 @@ export const zhTranslations: Record<string, string> = {
   'Commit in progress...': '提交中...',
   'Commit message': '提交信息',
   'Commit successful': '提交成功',
+  'Committed {{count}} files': '已提交 {{count}} 个文件',
   Conflict: '冲突',
   Copied: '复制',
   Copy: '复制',
