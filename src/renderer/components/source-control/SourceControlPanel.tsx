@@ -7,7 +7,7 @@ import {
   PanelLeft,
   PanelLeftClose,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   AlertDialog,
   AlertDialogClose,
@@ -25,15 +25,8 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty';
-import { toastManager } from '@/components/ui/toast';
 import { useCommitDiff, useCommitFiles, useGitHistoryInfinite } from '@/hooks/useGitHistory';
-import {
-  useFileChanges,
-  useGitCommit,
-  useGitDiscard,
-  useGitStage,
-  useGitUnstage,
-} from '@/hooks/useSourceControl';
+import { useFileChanges } from '@/hooks/useSourceControl';
 import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { useSourceControlStore } from '@/stores/sourceControl';
@@ -42,14 +35,10 @@ import { CommitBox } from './CommitBox';
 import { CommitDiffViewer } from './CommitDiffViewer';
 import { CommitFileList } from './CommitFileList';
 import { CommitHistoryList } from './CommitHistoryList';
+import { panelTransition } from './constants';
 import { DiffViewer } from './DiffViewer';
-
-const MIN_WIDTH = 180;
-const MAX_WIDTH = 500;
-const DEFAULT_WIDTH = 256;
-
-// Animation config
-const panelTransition = { type: 'spring' as const, stiffness: 400, damping: 30 };
+import { usePanelResize, useSecondaryPanelResize } from './usePanelResize';
+import { useSourceControlActions } from './useSourceControlActions';
 
 interface SourceControlPanelProps {
   rootPath: string | undefined;
@@ -104,6 +93,35 @@ export function SourceControlPanel({
 
   const { selectedFile, setSelectedFile, setNavigationDirection } = useSourceControlStore();
 
+  const staged = useMemo(() => changes?.filter((c) => c.staged) ?? [], [changes]);
+  const unstaged = useMemo(() => changes?.filter((c) => !c.staged) ?? [], [changes]);
+
+  // All files in order: staged first, then unstaged
+  const allFiles = useMemo(() => [...staged, ...unstaged], [staged, unstaged]);
+
+  // Panel resize hooks
+  const { width: panelWidth, isResizing, containerRef, handleMouseDown } = usePanelResize();
+
+  const {
+    width: commitFilesPanelWidth,
+    isResizing: isResizingCommitFiles,
+    panelRef: commitFilesPanelRef,
+    handleMouseDown: handleCommitFilesMouseDown,
+  } = useSecondaryPanelResize();
+
+  // Source control actions
+  const {
+    handleStage,
+    handleUnstage,
+    handleDiscard,
+    handleDeleteUntracked,
+    handleCommit,
+    confirmAction,
+    setConfirmAction,
+    handleConfirmAction,
+    isCommitting,
+  } = useSourceControlActions({ rootPath, stagedCount: staged.length });
+
   // Handle file click in current changes view - clear commit selection
   const handleFileClick = useCallback(
     (file: { path: string; staged: boolean }) => {
@@ -122,150 +140,6 @@ export function SourceControlPanel({
     },
     [setNavigationDirection]
   );
-  const stageMutation = useGitStage();
-  const unstageMutation = useGitUnstage();
-  const discardMutation = useGitDiscard();
-  const commitMutation = useGitCommit();
-
-  // Resizable panel state
-  const [panelWidth, setPanelWidth] = useState(DEFAULT_WIDTH);
-  const [isResizing, setIsResizing] = useState(false);
-  const [commitFilesPanelWidth, setCommitFilesPanelWidth] = useState(DEFAULT_WIDTH);
-  const [isResizingCommitFiles, setIsResizingCommitFiles] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Discard/Delete confirmation dialog state
-  const [confirmAction, setConfirmAction] = useState<{
-    path: string;
-    type: 'discard' | 'delete';
-  } | null>(null);
-
-  const staged = useMemo(() => changes?.filter((c) => c.staged) ?? [], [changes]);
-  const unstaged = useMemo(() => changes?.filter((c) => !c.staged) ?? [], [changes]);
-
-  // All files in order: staged first, then unstaged
-  const allFiles = useMemo(() => [...staged, ...unstaged], [staged, unstaged]);
-
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizing(true);
-  }, []);
-
-  const handleMouseMove = useCallback(
-    (e: MouseEvent) => {
-      if (!isResizing || !containerRef.current) return;
-      const containerRect = containerRef.current.getBoundingClientRect();
-      const newWidth = e.clientX - containerRect.left;
-      setPanelWidth(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, newWidth)));
-    },
-    [isResizing]
-  );
-
-  const handleMouseUp = useCallback(() => {
-    setIsResizing(false);
-  }, []);
-
-  // Commit files panel resize handlers
-  const commitFilesPanelRef = useRef<HTMLDivElement>(null);
-
-  const handleCommitFilesMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizingCommitFiles(true);
-  }, []);
-
-  const handleCommitFilesMouseMove = useCallback(
-    (e: MouseEvent) => {
-      if (!isResizingCommitFiles || !commitFilesPanelRef.current) return;
-      const panelRect = commitFilesPanelRef.current.getBoundingClientRect();
-      const newWidth = e.clientX - panelRect.left;
-      setCommitFilesPanelWidth(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, newWidth)));
-    },
-    [isResizingCommitFiles]
-  );
-
-  const handleCommitFilesMouseUp = useCallback(() => {
-    setIsResizingCommitFiles(false);
-  }, []);
-
-  // Attach global mouse events for resizing
-  useEffect(() => {
-    if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
-    }
-  }, [isResizing, handleMouseMove, handleMouseUp]);
-
-  useEffect(() => {
-    if (isResizingCommitFiles) {
-      document.addEventListener('mousemove', handleCommitFilesMouseMove);
-      document.addEventListener('mouseup', handleCommitFilesMouseUp);
-      return () => {
-        document.removeEventListener('mousemove', handleCommitFilesMouseMove);
-        document.removeEventListener('mouseup', handleCommitFilesMouseUp);
-      };
-    }
-  }, [isResizingCommitFiles, handleCommitFilesMouseMove, handleCommitFilesMouseUp]);
-
-  const handleStage = useCallback(
-    (paths: string[]) => {
-      if (rootPath) {
-        stageMutation.mutate({ workdir: rootPath, paths });
-      }
-    },
-    [rootPath, stageMutation]
-  );
-
-  const handleUnstage = useCallback(
-    (paths: string[]) => {
-      if (rootPath) {
-        unstageMutation.mutate({ workdir: rootPath, paths });
-      }
-    },
-    [rootPath, unstageMutation]
-  );
-
-  const handleDiscard = useCallback((path: string) => {
-    setConfirmAction({ path, type: 'discard' });
-  }, []);
-
-  const handleDeleteUntracked = useCallback((path: string) => {
-    setConfirmAction({ path, type: 'delete' });
-  }, []);
-
-  const handleConfirmAction = useCallback(async () => {
-    if (!rootPath || !confirmAction) return;
-
-    try {
-      if (confirmAction.type === 'discard') {
-        discardMutation.mutate({ workdir: rootPath, path: confirmAction.path });
-      } else {
-        // Delete untracked file
-        await window.electronAPI.file.delete(`${rootPath}/${confirmAction.path}`, {
-          recursive: false,
-        });
-        // Invalidate queries to refresh the file list
-        stageMutation.mutate({ workdir: rootPath, paths: [] });
-      }
-
-      // Clear selection if affecting selected file
-      if (selectedFile?.path === confirmAction.path) {
-        setSelectedFile(null);
-      }
-    } catch (error) {
-      toastManager.add({
-        title: confirmAction.type === 'discard' ? t('Discard failed') : t('Delete failed'),
-        description: error instanceof Error ? error.message : t('Unknown error'),
-        type: 'error',
-        timeout: 5000,
-      });
-    }
-
-    setConfirmAction(null);
-  }, [rootPath, confirmAction, discardMutation, selectedFile, setSelectedFile, stageMutation, t]);
 
   // File navigation
   const currentFileIndex = selectedFile
@@ -308,31 +182,6 @@ export function SourceControlPanel({
       setSelectedCommitFile(nextFile.path);
     }
   }, [currentCommitFileIndex, commitFiles, setNavigationDirection]);
-
-  const handleCommit = useCallback(
-    async (message: string) => {
-      if (!rootPath || staged.length === 0) return;
-
-      try {
-        await commitMutation.mutateAsync({ workdir: rootPath, message });
-        toastManager.add({
-          title: t('Commit successful'),
-          description: t('Committed {{count}} files', { count: staged.length }),
-          type: 'success',
-          timeout: 3000,
-        });
-        setSelectedFile(null);
-      } catch (error) {
-        toastManager.add({
-          title: t('Commit failed'),
-          description: error instanceof Error ? error.message : t('Unknown error'),
-          type: 'error',
-          timeout: 5000,
-        });
-      }
-    },
-    [rootPath, staged.length, commitMutation, setSelectedFile, t]
-  );
 
   if (!rootPath) {
     return (
@@ -448,7 +297,7 @@ export function SourceControlPanel({
                     <CommitBox
                       stagedCount={staged.length}
                       onCommit={handleCommit}
-                      isCommitting={commitMutation.isPending}
+                      isCommitting={isCommitting}
                       rootPath={rootPath}
                     />
                   </>
