@@ -15,6 +15,7 @@ export interface Session {
   agentCommand: string; // the CLI command to run (e.g., 'claude', 'codex')
   initialized: boolean; // true after first run, use --resume to restore
   activated?: boolean; // true after user presses Enter, only activated sessions are persisted
+  repoPath: string; // repository path this session belongs to
   cwd: string; // worktree path this session belongs to
   environment?: 'native' | 'wsl'; // execution environment (default: native)
 }
@@ -385,9 +386,7 @@ export function SessionBar({
                         >
                           <span>{name}</span>
                           {isDefault && (
-                            <span className="text-xs text-muted-foreground">
-                              {t('(default)')}
-                            </span>
+                            <span className="text-xs text-muted-foreground">{t('(default)')}</span>
                           )}
                         </button>
                       );

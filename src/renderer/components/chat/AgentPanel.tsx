@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { matchesKeybinding } from '@/lib/keybinding';
+import { useAgentSessionsStore } from '@/stores/agentSessions';
 import { BUILTIN_AGENT_IDS, useSettingsStore } from '@/stores/settings';
 import { useWorktreeActivityStore } from '@/stores/worktreeActivity';
 import { AgentTerminal } from './AgentTerminal';
@@ -11,8 +12,6 @@ interface AgentPanelProps {
   isActive?: boolean;
   onSwitchWorktree?: (worktreePath: string) => void;
 }
-
-const SESSIONS_STORAGE_PREFIX = 'enso-chat-sessions:';
 
 // Agent display names and commands
 const AGENT_INFO: Record<string, { name: string; command: string }> = {
@@ -44,6 +43,7 @@ function getDefaultAgentId(
 }
 
 function createSession(
+  repoPath: string,
   cwd: string,
   agentId: string,
   customAgents: Array<{ id: string; name: string; command: string }>
@@ -64,51 +64,10 @@ function createSession(
     agentId,
     agentCommand: info.command,
     initialized: false,
+    repoPath,
     cwd,
     environment: isWsl ? 'wsl' : 'native',
   };
-}
-
-function loadSessions(repoPath: string): {
-  sessions: Session[];
-  activeIds: Record<string, string | null>;
-} {
-  try {
-    const saved = localStorage.getItem(SESSIONS_STORAGE_PREFIX + repoPath);
-    if (saved) {
-      const data = JSON.parse(saved);
-      if (data.sessions?.length > 0) {
-        return { sessions: data.sessions, activeIds: data.activeIds || {} };
-      }
-    }
-  } catch {}
-  return { sessions: [], activeIds: {} };
-}
-
-// Agents that support session persistence
-const RESUMABLE_AGENTS = new Set(['claude']);
-
-function saveSessions(
-  repoPath: string,
-  sessions: Session[],
-  activeIds: Record<string, string | null>
-): void {
-  // Only persist sessions that are:
-  // 1. Using agents that support resumption (e.g., claude)
-  // 2. Activated (user has pressed Enter at least once)
-  const persistableSessions = sessions.filter(
-    (s) => RESUMABLE_AGENTS.has(s.agentCommand) && s.activated
-  );
-  const persistableIds = new Set(persistableSessions.map((s) => s.id));
-  // Only keep activeIds that reference persistable sessions
-  const persistableActiveIds: Record<string, string | null> = {};
-  for (const [cwd, id] of Object.entries(activeIds)) {
-    persistableActiveIds[cwd] = id && persistableIds.has(id) ? id : null;
-  }
-  localStorage.setItem(
-    SESSIONS_STORAGE_PREFIX + repoPath,
-    JSON.stringify({ sessions: persistableSessions, activeIds: persistableActiveIds })
-  );
 }
 
 export function AgentPanel({ repoPath, cwd, isActive = false, onSwitchWorktree }: AgentPanelProps) {
@@ -116,50 +75,53 @@ export function AgentPanel({ repoPath, cwd, isActive = false, onSwitchWorktree }
   const defaultAgentId = useMemo(() => getDefaultAgentId(agentSettings), [agentSettings]);
   const { setAgentCount, registerAgentCloseHandler } = useWorktreeActivityStore();
 
-  const [state, setState] = useState(() => {
-    const loaded = loadSessions(repoPath);
-    // Create initial session for current worktree if none exists
-    const hasSessionForCwd = loaded.sessions.some((s) => s.cwd === cwd);
-    if (!hasSessionForCwd && cwd) {
-      const agentId = getDefaultAgentId(agentSettings);
-      const newSession = createSession(cwd, agentId, customAgents);
-      return {
-        sessions: [...loaded.sessions, newSession],
-        activeIds: { ...loaded.activeIds, [cwd]: newSession.id },
-      };
-    }
-    return { sessions: loaded.sessions, activeIds: loaded.activeIds };
-  });
-  const allSessions = state.sessions;
-  const activeIds = state.activeIds;
+  // Use zustand store for sessions - state persists even when component unmounts
+  const allSessions = useAgentSessionsStore((state) => state.sessions);
+  const activeIds = useAgentSessionsStore((state) => state.activeIds);
+  const addSession = useAgentSessionsStore((state) => state.addSession);
+  const removeSession = useAgentSessionsStore((state) => state.removeSession);
+  const updateSession = useAgentSessionsStore((state) => state.updateSession);
+  const setActiveId = useAgentSessionsStore((state) => state.setActiveId);
 
   // Get current worktree's active session id (fallback to first session if not set)
-  const activeSessionId = activeIds[cwd] || allSessions.find((s) => s.cwd === cwd)?.id || null;
+  const activeSessionId = useMemo(() => {
+    const activeId = activeIds[cwd];
+    if (activeId) {
+      // Verify the session exists and matches repoPath
+      const session = allSessions.find((s) => s.id === activeId);
+      if (session && session.repoPath === repoPath) {
+        return activeId;
+      }
+    }
+    // Fallback to first session for this repo+cwd
+    const firstSession = allSessions.find((s) => s.repoPath === repoPath && s.cwd === cwd);
+    return firstSession?.id || null;
+  }, [activeIds, allSessions, repoPath, cwd]);
 
-  // Filter sessions for current worktree (for SessionBar display)
+  // Filter sessions for current repo+worktree (for SessionBar display)
   const currentWorktreeSessions = useMemo(() => {
-    return allSessions.filter((s) => s.cwd === cwd);
-  }, [allSessions, cwd]);
+    return allSessions.filter((s) => s.repoPath === repoPath && s.cwd === cwd);
+  }, [allSessions, repoPath, cwd]);
 
-  // Create initial session when switching to a new worktree
+  // Create initial session when switching to a new repo+worktree
   useEffect(() => {
     if (currentWorktreeSessions.length === 0 && cwd) {
-      setState((prev) => {
-        // Double check to prevent duplicates
-        if (prev.sessions.some((s) => s.cwd === cwd)) return prev;
-        const newSession = createSession(cwd, defaultAgentId, customAgents);
-        return {
-          sessions: [...prev.sessions, newSession],
-          activeIds: { ...prev.activeIds, [cwd]: newSession.id },
-        };
-      });
+      // Double check to prevent duplicates
+      const hasSession = allSessions.some((s) => s.repoPath === repoPath && s.cwd === cwd);
+      if (!hasSession) {
+        const newSession = createSession(repoPath, cwd, defaultAgentId, customAgents);
+        addSession(newSession);
+      }
     }
-  }, [cwd, currentWorktreeSessions.length, defaultAgentId, customAgents]);
-
-  // Persist sessions on change
-  useEffect(() => {
-    saveSessions(repoPath, allSessions, activeIds);
-  }, [repoPath, allSessions, activeIds]);
+  }, [
+    repoPath,
+    cwd,
+    currentWorktreeSessions.length,
+    defaultAgentId,
+    customAgents,
+    allSessions,
+    addSession,
+  ]);
 
   // Sync initialized agent session counts to worktree activity store
   useEffect(() => {
@@ -178,145 +140,151 @@ export function AgentPanel({ repoPath, cwd, isActive = false, onSwitchWorktree }
   // Register close handler for external close requests
   useEffect(() => {
     const handleCloseAll = (worktreePath: string) => {
-      setState((prev) => {
-        // Close all initialized sessions for this worktree
-        const initializedSessions = prev.sessions.filter(
-          (s) => s.cwd === worktreePath && s.initialized
+      // Close all initialized sessions for this worktree
+      const initializedSessions = allSessions.filter(
+        (s) => s.cwd === worktreePath && s.initialized
+      );
+      if (initializedSessions.length === 0) return;
+
+      // Get the repoPath from the first initialized session
+      const sessionRepoPath = initializedSessions[0].repoPath;
+
+      // Remove initialized sessions
+      for (const session of initializedSessions) {
+        removeSession(session.id);
+      }
+
+      // Check if any sessions remain for this worktree
+      const remainingForWorktree = allSessions.filter(
+        (s) => s.repoPath === sessionRepoPath && s.cwd === worktreePath && !s.initialized
+      );
+      if (remainingForWorktree.length === 0) {
+        // Create a new empty session
+        const newSession = createSession(
+          sessionRepoPath,
+          worktreePath,
+          defaultAgentId,
+          customAgents
         );
-        if (initializedSessions.length === 0) return prev;
+        addSession(newSession);
+      }
 
-        // Keep uninitialized sessions, remove initialized ones
-        const newSessions = prev.sessions.filter((s) => s.cwd !== worktreePath || !s.initialized);
-        const newActiveIds = { ...prev.activeIds };
-
-        // Update active id if needed
-        const remainingForWorktree = newSessions.filter((s) => s.cwd === worktreePath);
-        if (remainingForWorktree.length > 0) {
-          newActiveIds[worktreePath] = remainingForWorktree[0].id;
-        } else {
-          // Create a new empty session only if no sessions remain
-          const newSession = createSession(worktreePath, defaultAgentId, customAgents);
-          // Explicitly set count to 0 since new session is not initialized
-          setAgentCount(worktreePath, 0);
-          return {
-            sessions: [...newSessions, newSession],
-            activeIds: { ...newActiveIds, [worktreePath]: newSession.id },
-          };
-        }
-
-        // Explicitly set count to 0 since we removed all initialized sessions
-        setAgentCount(worktreePath, 0);
-        return { sessions: newSessions, activeIds: newActiveIds };
-      });
+      // Set count to 0
+      setAgentCount(worktreePath, 0);
     };
 
     return registerAgentCloseHandler(handleCloseAll);
-  }, [registerAgentCloseHandler, defaultAgentId, customAgents, setAgentCount]);
+  }, [
+    registerAgentCloseHandler,
+    defaultAgentId,
+    customAgents,
+    setAgentCount,
+    allSessions,
+    removeSession,
+    addSession,
+  ]);
 
   const handleNewSession = useCallback(() => {
-    const newSession = createSession(cwd, defaultAgentId, customAgents);
-    setState((prev) => ({
-      sessions: [...prev.sessions, newSession],
-      activeIds: { ...prev.activeIds, [cwd]: newSession.id },
-    }));
-  }, [cwd, defaultAgentId, customAgents]);
+    const newSession = createSession(repoPath, cwd, defaultAgentId, customAgents);
+    addSession(newSession);
+  }, [repoPath, cwd, defaultAgentId, customAgents, addSession]);
 
   const handleCloseSession = useCallback(
     (id: string) => {
-      setState((prev) => {
-        const session = prev.sessions.find((s) => s.id === id);
-        if (!session) return prev;
+      const session = allSessions.find((s) => s.id === id);
+      if (!session) return;
 
-        const worktreeCwd = session.cwd;
-        const newSessions = prev.sessions.filter((s) => s.id !== id);
-        const remainingInWorktree = newSessions.filter((s) => s.cwd === worktreeCwd);
+      const sessionRepoPath = session.repoPath;
+      const worktreeCwd = session.cwd;
 
-        const newActiveIds = { ...prev.activeIds };
+      // Remove the session
+      removeSession(id);
 
-        // If closing active session in this worktree, switch to another
-        if (prev.activeIds[worktreeCwd] === id) {
-          if (remainingInWorktree.length > 0) {
-            const closedIndex = prev.sessions
-              .filter((s) => s.cwd === worktreeCwd)
-              .findIndex((s) => s.id === id);
-            const newActiveIndex = Math.min(closedIndex, remainingInWorktree.length - 1);
-            newActiveIds[worktreeCwd] = remainingInWorktree[newActiveIndex].id;
-          } else {
-            // Create a new session if all closed in this worktree
-            const newSession = createSession(worktreeCwd, defaultAgentId, customAgents);
-            return {
-              sessions: [...newSessions, newSession],
-              activeIds: { ...newActiveIds, [worktreeCwd]: newSession.id },
-            };
-          }
+      // Check remaining sessions for this worktree
+      const remainingInWorktree = allSessions.filter(
+        (s) => s.id !== id && s.repoPath === sessionRepoPath && s.cwd === worktreeCwd
+      );
+
+      // If closing active session, switch to another
+      if (activeIds[worktreeCwd] === id) {
+        if (remainingInWorktree.length > 0) {
+          const closedIndex = allSessions
+            .filter((s) => s.repoPath === sessionRepoPath && s.cwd === worktreeCwd)
+            .findIndex((s) => s.id === id);
+          const newActiveIndex = Math.min(closedIndex, remainingInWorktree.length - 1);
+          setActiveId(worktreeCwd, remainingInWorktree[newActiveIndex].id);
+        } else {
+          // Create a new session if all closed
+          const newSession = createSession(
+            sessionRepoPath,
+            worktreeCwd,
+            defaultAgentId,
+            customAgents
+          );
+          addSession(newSession);
         }
-
-        return { sessions: newSessions, activeIds: newActiveIds };
-      });
+      }
     },
-    [defaultAgentId, customAgents]
+    [allSessions, activeIds, defaultAgentId, customAgents, removeSession, setActiveId, addSession]
   );
 
-  const handleSelectSession = useCallback((id: string) => {
-    setState((prev) => {
-      const session = prev.sessions.find((s) => s.id === id);
-      if (!session) return prev;
-      return { ...prev, activeIds: { ...prev.activeIds, [session.cwd]: id } };
-    });
-  }, []);
+  const handleSelectSession = useCallback(
+    (id: string) => {
+      const session = allSessions.find((s) => s.id === id);
+      if (!session) return;
+      setActiveId(session.cwd, id);
+    },
+    [allSessions, setActiveId]
+  );
 
   // 监听通知点击，激活对应 session 并切换 worktree
   useEffect(() => {
     const unsubscribe = window.electronAPI.notification.onClick((sessionId) => {
-      const session = state.sessions.find((s) => s.id === sessionId);
+      const session = allSessions.find((s) => s.id === sessionId);
       if (session && session.cwd !== cwd && onSwitchWorktree) {
         onSwitchWorktree(session.cwd);
       }
       handleSelectSession(sessionId);
     });
     return unsubscribe;
-  }, [handleSelectSession, state.sessions, cwd, onSwitchWorktree]);
+  }, [handleSelectSession, allSessions, cwd, onSwitchWorktree]);
 
   const handleNextSession = useCallback(() => {
-    setState((prev) => {
-      const sessions = prev.sessions.filter((s) => s.cwd === cwd);
-      if (sessions.length <= 1) return prev;
-      const currentIndex = sessions.findIndex((s) => s.id === prev.activeIds[cwd]);
-      const nextIndex = (currentIndex + 1) % sessions.length;
-      return { ...prev, activeIds: { ...prev.activeIds, [cwd]: sessions[nextIndex].id } };
-    });
-  }, [cwd]);
+    const sessions = allSessions.filter((s) => s.repoPath === repoPath && s.cwd === cwd);
+    if (sessions.length <= 1) return;
+    const currentIndex = sessions.findIndex((s) => s.id === activeIds[cwd]);
+    const nextIndex = (currentIndex + 1) % sessions.length;
+    setActiveId(cwd, sessions[nextIndex].id);
+  }, [allSessions, repoPath, cwd, activeIds, setActiveId]);
 
   const handlePrevSession = useCallback(() => {
-    setState((prev) => {
-      const sessions = prev.sessions.filter((s) => s.cwd === cwd);
-      if (sessions.length <= 1) return prev;
-      const currentIndex = sessions.findIndex((s) => s.id === prev.activeIds[cwd]);
-      const prevIndex = currentIndex <= 0 ? sessions.length - 1 : currentIndex - 1;
-      return { ...prev, activeIds: { ...prev.activeIds, [cwd]: sessions[prevIndex].id } };
-    });
-  }, [cwd]);
+    const sessions = allSessions.filter((s) => s.repoPath === repoPath && s.cwd === cwd);
+    if (sessions.length <= 1) return;
+    const currentIndex = sessions.findIndex((s) => s.id === activeIds[cwd]);
+    const prevIndex = currentIndex <= 0 ? sessions.length - 1 : currentIndex - 1;
+    setActiveId(cwd, sessions[prevIndex].id);
+  }, [allSessions, repoPath, cwd, activeIds, setActiveId]);
 
-  const handleInitialized = useCallback((id: string) => {
-    setState((prev) => ({
-      ...prev,
-      sessions: prev.sessions.map((s) => (s.id === id ? { ...s, initialized: true } : s)),
-    }));
-  }, []);
+  const handleInitialized = useCallback(
+    (id: string) => {
+      updateSession(id, { initialized: true });
+    },
+    [updateSession]
+  );
 
-  const handleActivated = useCallback((id: string) => {
-    setState((prev) => ({
-      ...prev,
-      sessions: prev.sessions.map((s) => (s.id === id ? { ...s, activated: true } : s)),
-    }));
-  }, []);
+  const handleActivated = useCallback(
+    (id: string) => {
+      updateSession(id, { activated: true });
+    },
+    [updateSession]
+  );
 
-  const handleRenameSession = useCallback((id: string, name: string) => {
-    setState((prev) => ({
-      ...prev,
-      sessions: prev.sessions.map((s) => (s.id === id ? { ...s, name } : s)),
-    }));
-  }, []);
+  const handleRenameSession = useCallback(
+    (id: string, name: string) => {
+      updateSession(id, { name });
+    },
+    [updateSession]
+  );
 
   const handleNewSessionWithAgent = useCallback(
     (agentId: string, agentCommand: string) => {
@@ -334,16 +302,14 @@ export function AgentPanel({ repoPath, cwd, isActive = false, onSwitchWorktree }
         agentId,
         agentCommand,
         initialized: false,
+        repoPath,
         cwd,
         environment: isWsl ? 'wsl' : 'native',
       };
 
-      setState((prev) => ({
-        sessions: [...prev.sessions, newSession],
-        activeIds: { ...prev.activeIds, [cwd]: newSession.id },
-      }));
+      addSession(newSession);
     },
-    [cwd, customAgents]
+    [repoPath, cwd, customAgents, addSession]
   );
 
   // Agent session keyboard shortcuts
@@ -383,7 +349,7 @@ export function AgentPanel({ repoPath, cwd, isActive = false, onSwitchWorktree }
 
       // Bonus: Cmd/Win+1-9 to switch to specific session (if not intercepted by main tab)
       if (e.metaKey && e.key >= '1' && e.key <= '9' && !e.ctrlKey && !e.shiftKey && !e.altKey) {
-        const sessions = allSessions.filter((s) => s.cwd === cwd);
+        const sessions = allSessions.filter((s) => s.repoPath === repoPath && s.cwd === cwd);
         const index = Number.parseInt(e.key, 10) - 1;
         if (index < sessions.length) {
           e.preventDefault();
@@ -403,16 +369,18 @@ export function AgentPanel({ repoPath, cwd, isActive = false, onSwitchWorktree }
     handleNextSession,
     handlePrevSession,
     allSessions,
+    repoPath,
     cwd,
     handleSelectSession,
   ]);
 
   return (
     <div className="relative h-full w-full">
-      {/* Render all terminals across all worktrees, keep them mounted */}
+      {/* Render all terminals across all repos/worktrees, keep them mounted */}
       {/* Use opacity-0 instead of invisible to avoid WebGL rendering artifacts */}
       {allSessions.map((session) => {
-        const isSessionActive = session.cwd === cwd && activeSessionId === session.id;
+        const isSessionActive =
+          session.repoPath === repoPath && session.cwd === cwd && activeSessionId === session.id;
         return (
           <div
             key={session.id}

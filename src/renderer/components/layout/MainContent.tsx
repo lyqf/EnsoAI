@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { FileCode, FolderOpen, GitBranch, Sparkles, Terminal } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import { OpenInMenu } from '@/components/app/OpenInMenu';
 import { AgentPanel } from '@/components/chat/AgentPanel';
 import { FilePanel } from '@/components/files';
@@ -51,6 +52,26 @@ export function MainContent({
   // Need extra padding for traffic lights when both panels are collapsed (macOS only)
   const isMac = window.electronAPI.env.platform === 'darwin';
   const needsTrafficLightPadding = isMac && repositoryCollapsed && worktreeCollapsed;
+
+  // Remember last valid repoPath and worktreePath to keep AgentPanel mounted
+  // This prevents agent terminals from being destroyed when switching repos
+  const lastValidRepoPathRef = useRef<string | null>(null);
+  const lastValidWorktreePathRef = useRef<string | null>(null);
+
+  // Update refs when we have valid values
+  useEffect(() => {
+    if (repoPath && worktreePath) {
+      lastValidRepoPathRef.current = repoPath;
+      lastValidWorktreePathRef.current = worktreePath;
+    }
+  }, [repoPath, worktreePath]);
+
+  // Use current values if available, otherwise use last valid values
+  const effectiveRepoPath = repoPath || lastValidRepoPathRef.current;
+  const effectiveWorktreePath = worktreePath || lastValidWorktreePathRef.current;
+
+  // Check if we have a currently selected worktree
+  const hasActiveWorktree = Boolean(repoPath && worktreePath);
 
   return (
     <main className="flex min-w-[535px] flex-1 flex-col overflow-hidden bg-background">
@@ -129,20 +150,45 @@ export function MainContent({
 
       {/* Content */}
       <div className="relative flex-1 overflow-hidden">
-        {/* Chat tab - keep mounted to preserve terminal session */}
+        {/* Chat tab - ALWAYS keep AgentPanel mounted to preserve terminal sessions across repo switches */}
         <div
           className={cn(
             'absolute inset-0 bg-background',
             activeTab === 'chat' ? 'z-10' : 'invisible pointer-events-none z-0'
           )}
         >
-          {repoPath && worktreePath ? (
-            <AgentPanel
-              repoPath={repoPath}
-              cwd={worktreePath}
-              isActive={activeTab === 'chat'}
-              onSwitchWorktree={onSwitchWorktree}
-            />
+          {/* Always render AgentPanel if we have any valid paths (current or previous) */}
+          {effectiveRepoPath && effectiveWorktreePath ? (
+            <>
+              <AgentPanel
+                repoPath={effectiveRepoPath}
+                cwd={effectiveWorktreePath}
+                isActive={activeTab === 'chat' && hasActiveWorktree}
+                onSwitchWorktree={onSwitchWorktree}
+              />
+              {/* Show overlay when no worktree is actively selected */}
+              {!hasActiveWorktree && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+                  <Empty className="border-0 bg-transparent">
+                    <EmptyMedia variant="icon">
+                      <Sparkles className="h-4.5 w-4.5" />
+                    </EmptyMedia>
+                    <EmptyHeader>
+                      <EmptyTitle>{t('Select a Worktree')}</EmptyTitle>
+                      <EmptyDescription>
+                        {t('Choose a worktree to continue using AI Agent')}
+                      </EmptyDescription>
+                    </EmptyHeader>
+                    {onExpandWorktree && worktreeCollapsed && (
+                      <Button onClick={onExpandWorktree} variant="outline" className="mt-2">
+                        <GitBranch className="mr-2 h-4 w-4" />
+                        {t('Choose Worktree')}
+                      </Button>
+                    )}
+                  </Empty>
+                </div>
+              )}
+            </>
           ) : (
             <Empty>
               <EmptyMedia variant="icon">
