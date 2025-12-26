@@ -424,6 +424,9 @@ export function useXterm({
           window.electronAPI.terminal.write(ptyIdRef.current, data);
         }
       });
+
+      // Focus terminal after initialization
+      terminal.focus();
     } catch (error) {
       setIsLoading(false);
       terminal.writeln(`\x1b[31mFailed to start terminal.\x1b[0m`);
@@ -511,10 +514,13 @@ export function useXterm({
     };
   }, []);
 
-  // Fit when becoming active
+  // Fit and focus when becoming active
   useEffect(() => {
     if (isActive && terminalRef.current) {
-      requestAnimationFrame(() => fit());
+      requestAnimationFrame(() => {
+        fit();
+        terminalRef.current?.focus();
+      });
     }
   }, [isActive, fit]);
 

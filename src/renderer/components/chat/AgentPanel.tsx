@@ -427,7 +427,7 @@ export function AgentPanel({ repoPath, cwd, isActive = false, onSwitchWorktree }
               environment={session.environment || 'native'}
               initialized={session.initialized}
               activated={session.activated}
-              isActive={isSessionActive}
+              isActive={isActive && isSessionActive}
               onInitialized={() => handleInitialized(session.id)}
               onActivated={() => handleActivated(session.id)}
               onExit={() => handleCloseSession(session.id)}
