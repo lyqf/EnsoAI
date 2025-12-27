@@ -158,7 +158,9 @@
   /* Allow selection in input fields */
   input,
   textarea,
-  [contenteditable="true"] {
+  [contenteditable="true"],
+  .select-text,
+  .select-text * {
     user-select: text;
     -webkit-user-select: text;
   }

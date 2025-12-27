@@ -192,7 +192,11 @@ export function registerGitHandlers(): void {
       // Helper to run git commands
       const runGit = (cmd: string): string => {
         try {
-          return execSync(cmd, { cwd: resolved, encoding: 'utf-8', timeout: 5000 }).trim();
+          return execSync(cmd, {
+            cwd: resolved,
+            encoding: 'utf-8',
+            timeout: 5000,
+          }).trim();
         } catch {
           return '';
         }
@@ -286,7 +290,10 @@ ${truncatedDiff}`;
             if (result.type === 'result' && result.subtype === 'success' && result.result) {
               resolve({ success: true, message: result.result });
             } else {
-              resolve({ success: false, error: result.error || 'Unknown error' });
+              resolve({
+                success: false,
+                error: result.error || 'Unknown error',
+              });
             }
           } catch {
             resolve({ success: false, error: 'Failed to parse response' });
@@ -315,7 +322,11 @@ ${truncatedDiff}`;
       // Helper to run git commands
       const runGit = (cmd: string): string => {
         try {
-          return execSync(cmd, { cwd: resolved, encoding: 'utf-8', timeout: 10000 }).trim();
+          return execSync(cmd, {
+            cwd: resolved,
+            encoding: 'utf-8',
+            timeout: 10000,
+          }).trim();
         } catch {
           return '';
         }
@@ -331,7 +342,7 @@ ${truncatedDiff}`;
         return { success: false, error: 'No changes to review' };
       }
 
-      const prompt = `You are performing a code review on the changes in the current branch.
+      const prompt = `Always reply in Chinese. You are performing a code review on the changes in the current branch.
 
 
 ## Code Review Instructions

@@ -259,7 +259,7 @@ export function CodeReviewModal({ open, onOpenChange, repoPath }: CodeReviewModa
                   <span>{error}</span>
                 </div>
               ) : content ? (
-                <div className="text-sm text-foreground">
+                <div className="text-sm text-foreground select-text">
                   <Markdown
                     remarkPlugins={[remarkGfm, remarkBreaks]}
                     components={markdownComponents}
