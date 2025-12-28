@@ -109,6 +109,7 @@ jobs:
           path: ${{ env.STORE_PATH }}
           key: ${{ runner.os }}-${{ matrix.arch }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: ${{ runner.os }}-${{ matrix.arch }}-pnpm-
+          save-always: true
 
       - name: Cache Electron
         uses: actions/cache@v4
@@ -118,6 +119,7 @@ jobs:
             ~/Library/Caches/electron-builder
           key: ${{ runner.os }}-${{ matrix.arch }}-electron-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: ${{ runner.os }}-${{ matrix.arch }}-electron-
+          save-always: true
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -162,6 +164,7 @@ jobs:
           path: ${{ env.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: ${{ runner.os }}-pnpm-
+          save-always: true
 
       - name: Cache Electron
         uses: actions/cache@v4
@@ -171,6 +174,7 @@ jobs:
             ~/AppData/Local/electron-builder/Cache
           key: ${{ runner.os }}-electron-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: ${{ runner.os }}-electron-
+          save-always: true
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -214,6 +218,7 @@ jobs:
           path: ${{ env.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: ${{ runner.os }}-pnpm-
+          save-always: true
 
       - name: Cache Electron
         uses: actions/cache@v4
@@ -223,6 +228,7 @@ jobs:
             ~/.cache/electron-builder
           key: ${{ runner.os }}-electron-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: ${{ runner.os }}-electron-
+          save-always: true
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
