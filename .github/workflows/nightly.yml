@@ -103,31 +103,28 @@ jobs:
       - name: Get pnpm store directory
         run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
+      - name: Restore pnpm cache
+        uses: actions/cache/restore@v4
         with:
           path: ${{ env.STORE_PATH }}
           key: ${{ runner.os }}-${{ matrix.arch }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: ${{ runner.os }}-${{ matrix.arch }}-pnpm-
-          save-always: true
 
-      - name: Cache Electron
-        uses: actions/cache@v4
+      - name: Restore Electron cache
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/Library/Caches/electron
             ~/Library/Caches/electron-builder
           key: ${{ runner.os }}-${{ matrix.arch }}-electron-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: ${{ runner.os }}-${{ matrix.arch }}-electron-
-          save-always: true
 
-      - name: Cache electron-rebuild
-        uses: actions/cache@v4
+      - name: Restore electron-rebuild cache
+        uses: actions/cache/restore@v4
         with:
           path: .electron-rebuild-cache
           key: ${{ runner.os }}-${{ matrix.arch }}-rebuild-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: ${{ runner.os }}-${{ matrix.arch }}-rebuild-
-          save-always: true
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -141,6 +138,29 @@ jobs:
           name: mac-${{ matrix.arch }}
           path: dist/*.dmg
           retention-days: 7
+
+      - name: Save pnpm cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-${{ matrix.arch }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Save Electron cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/Library/Caches/electron
+            ~/Library/Caches/electron-builder
+          key: ${{ runner.os }}-${{ matrix.arch }}-electron-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Save electron-rebuild cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .electron-rebuild-cache
+          key: ${{ runner.os }}-${{ matrix.arch }}-rebuild-${{ hashFiles('**/pnpm-lock.yaml') }}
 
   build-windows:
     needs: [prepare, build-app]
@@ -166,31 +186,28 @@ jobs:
         shell: bash
         run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
+      - name: Restore pnpm cache
+        uses: actions/cache/restore@v4
         with:
           path: ${{ env.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: ${{ runner.os }}-pnpm-
-          save-always: true
 
-      - name: Cache Electron
-        uses: actions/cache@v4
+      - name: Restore Electron cache
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/AppData/Local/electron/Cache
             ~/AppData/Local/electron-builder/Cache
           key: ${{ runner.os }}-electron-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: ${{ runner.os }}-electron-
-          save-always: true
 
-      - name: Cache electron-rebuild
-        uses: actions/cache@v4
+      - name: Restore electron-rebuild cache
+        uses: actions/cache/restore@v4
         with:
           path: .electron-rebuild-cache
           key: ${{ runner.os }}-rebuild-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: ${{ runner.os }}-rebuild-
-          save-always: true
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -204,6 +221,29 @@ jobs:
           name: windows-x64
           path: dist/*portable*.exe
           retention-days: 7
+
+      - name: Save pnpm cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Save Electron cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/AppData/Local/electron/Cache
+            ~/AppData/Local/electron-builder/Cache
+          key: ${{ runner.os }}-electron-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Save electron-rebuild cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .electron-rebuild-cache
+          key: ${{ runner.os }}-rebuild-${{ hashFiles('**/pnpm-lock.yaml') }}
 
   build-linux:
     needs: [prepare, build-app]
@@ -228,31 +268,28 @@ jobs:
       - name: Get pnpm store directory
         run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
+      - name: Restore pnpm cache
+        uses: actions/cache/restore@v4
         with:
           path: ${{ env.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: ${{ runner.os }}-pnpm-
-          save-always: true
 
-      - name: Cache Electron
-        uses: actions/cache@v4
+      - name: Restore Electron cache
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/.cache/electron
             ~/.cache/electron-builder
           key: ${{ runner.os }}-electron-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: ${{ runner.os }}-electron-
-          save-always: true
 
-      - name: Cache electron-rebuild
-        uses: actions/cache@v4
+      - name: Restore electron-rebuild cache
+        uses: actions/cache/restore@v4
         with:
           path: .electron-rebuild-cache
           key: ${{ runner.os }}-rebuild-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: ${{ runner.os }}-rebuild-
-          save-always: true
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -266,6 +303,29 @@ jobs:
           name: linux-x64
           path: dist/*.AppImage
           retention-days: 7
+
+      - name: Save pnpm cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Save Electron cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+          key: ${{ runner.os }}-electron-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Save electron-rebuild cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .electron-rebuild-cache
+          key: ${{ runner.os }}-rebuild-${{ hashFiles('**/pnpm-lock.yaml') }}
 
   release:
     needs: [prepare, build-mac, build-windows, build-linux]
