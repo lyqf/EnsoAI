@@ -1,5 +1,5 @@
 import { exec } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import { promisify } from 'node:util';
@@ -128,45 +128,21 @@ class CliDetector {
     }
   }
 
+  /**
+   * Get enhanced PATH for Windows (Unix uses login shell instead)
+   */
   private getEnhancedPath(): string {
     const home = process.env.HOME || process.env.USERPROFILE || homedir();
     const currentPath = process.env.PATH || '';
 
-    if (isWindows) {
-      // Windows: Add common Node.js paths
-      const paths = [
-        currentPath,
-        join(home, 'AppData', 'Roaming', 'npm'),
-        join(home, '.volta', 'bin'),
-        join(home, 'scoop', 'shims'),
-      ];
-      return paths.filter(Boolean).join(delimiter);
-    }
-
-    // Unix: Add common paths
     const paths = [
       currentPath,
-      '/usr/local/bin',
-      '/usr/bin',
-      '/bin',
-      '/opt/homebrew/bin', // macOS Homebrew
-      join(home, '.local', 'bin'),
+      join(home, 'AppData', 'Roaming', 'npm'),
       join(home, '.volta', 'bin'),
-      join(home, '.cargo', 'bin'), // Rust
-      join(home, '.bun', 'bin'), // Bun
-      ...this.getNvmNodeBins(home),
+      join(home, 'scoop', 'shims'),
+      join(home, '.bun', 'bin'),
     ];
     return paths.filter(Boolean).join(delimiter);
-  }
-
-  private getNvmNodeBins(home: string): string[] {
-    const nvmVersionsDir = join(home, '.nvm/versions/node');
-    try {
-      const versions = readdirSync(nvmVersionsDir);
-      return versions.map((v) => join(nvmVersionsDir, v, 'bin'));
-    } catch {
-      return [];
-    }
   }
 
   async detectBuiltin(config: BuiltinAgentConfig): Promise<AgentCliInfo> {
