@@ -634,6 +634,10 @@ export const zhTranslations: Record<string, string> = {
   'Starting...': '启动中...',
   'Use HTTP/2 Protocol': '使用 HTTP/2 协议',
   'More compatible than QUIC when behind firewalls': '在防火墙后比 QUIC 更兼容',
+  // Happy
+  'Happy Agents': 'Happy Agent',
+  'Agents running through Happy': '通过 Happy 运行的 Agent',
+  'Run agents through Happy for enhanced experience': '通过 Happy 运行 Agent 获得增强体验',
 };
 
 export function normalizeLocale(input?: string): Locale {

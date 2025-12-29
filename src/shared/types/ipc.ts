@@ -120,6 +120,7 @@ export const IPC_CHANNELS = {
 
   // Hapi Remote Sharing
   HAPI_CHECK_GLOBAL: 'hapi:checkGlobal',
+  HAPPY_CHECK_GLOBAL: 'happy:checkGlobal',
   HAPI_START: 'hapi:start',
   HAPI_STOP: 'hapi:stop',
   HAPI_RESTART: 'hapi:restart',

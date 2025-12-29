@@ -20,6 +20,11 @@ export interface HapiGlobalStatus {
   version?: string;
 }
 
+export interface HappyGlobalStatus {
+  installed: boolean;
+  version?: string;
+}
+
 export interface HapiStatus {
   running: boolean;
   ready?: boolean;
@@ -56,6 +61,10 @@ class HapiServerManager extends EventEmitter {
   private globalStatus: HapiGlobalStatus | null = null;
   private globalCacheTimestamp: number = 0;
   private readonly CACHE_TTL = 300000; // 5 minutes cache
+
+  // Happy global installation cache
+  private happyGlobalStatus: HappyGlobalStatus | null = null;
+  private happyGlobalCacheTimestamp: number = 0;
 
   generateToken(): string {
     return randomBytes(32).toString('hex');
@@ -108,6 +117,47 @@ class HapiServerManager extends EventEmitter {
 
     this.globalCacheTimestamp = Date.now();
     return this.globalStatus;
+  }
+
+  /**
+   * Check if happy is globally installed (cached)
+   * Uses 'which happy' for fast detection, then gets version separately
+   */
+  async checkHappyGlobalInstall(forceRefresh = false): Promise<HappyGlobalStatus> {
+    // Return cached result if still valid
+    if (
+      !forceRefresh &&
+      this.happyGlobalStatus &&
+      Date.now() - this.happyGlobalCacheTimestamp < this.CACHE_TTL
+    ) {
+      return this.happyGlobalStatus;
+    }
+
+    try {
+      // First check if happy exists (fast)
+      // Use 'where' on Windows, 'which' on Unix
+      const whichCmd = isWindows ? 'where happy' : 'which happy';
+      await this.execInLoginShell(whichCmd, 2000);
+
+      // If exists, try to get version (may take longer due to claude version check)
+      try {
+        const stdout = await this.execInLoginShell('happy --version', 8000);
+        // Match version from first line: "happy version: X.Y.Z"
+        const match = stdout.match(/happy version:\s*(\d+\.\d+\.\d+)/i);
+        this.happyGlobalStatus = {
+          installed: true,
+          version: match ? match[1] : undefined,
+        };
+      } catch {
+        // Command exists but version check failed, still mark as installed
+        this.happyGlobalStatus = { installed: true };
+      }
+    } catch {
+      this.happyGlobalStatus = { installed: false };
+    }
+
+    this.happyGlobalCacheTimestamp = Date.now();
+    return this.happyGlobalStatus;
   }
 
   /**

@@ -20,6 +20,11 @@ interface HapiGlobalStatus {
   version?: string;
 }
 
+interface HappyGlobalStatus {
+  installed: boolean;
+  version?: string;
+}
+
 interface CloudflaredStatus {
   installed: boolean;
   version?: string;
@@ -36,6 +41,9 @@ export function HapiSettings() {
 
   // Hapi global installation status
   const [hapiGlobal, setHapiGlobal] = React.useState<HapiGlobalStatus>({ installed: false });
+
+  // Happy global installation status (null = loading)
+  const [happyGlobal, setHappyGlobal] = React.useState<HappyGlobalStatus | null>(null);
 
   // Cloudflared state
   const [cfStatus, setCfStatus] = React.useState<CloudflaredStatus>({
@@ -66,6 +74,11 @@ export function HapiSettings() {
     // Check hapi global installation
     window.electronAPI.hapi.checkGlobal().then((result) => {
       setHapiGlobal(result);
+    });
+
+    // Check happy global installation
+    window.electronAPI.happy.checkGlobal().then((result) => {
+      setHappyGlobal(result);
     });
 
     window.electronAPI.hapi.getStatus().then((s) => {
@@ -492,6 +505,35 @@ export function HapiSettings() {
           </div>
         </>
       )}
+
+      {/* Happy Section */}
+      <div className="border-t pt-4">
+        <div className="flex items-center gap-2">
+          <h3 className="text-lg font-medium">Happy</h3>
+          <button
+            type="button"
+            onClick={() => window.electronAPI.shell.openExternal('https://github.com/slopus/happy')}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            title="GitHub"
+          >
+            <Github className="h-4 w-4" />
+          </button>
+          {happyGlobal === null ? (
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground" />
+          ) : happyGlobal.installed ? (
+            <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-xs text-green-600 dark:text-green-400">
+              v{happyGlobal.version || '?'}
+            </span>
+          ) : (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+              {t('Not installed')}
+            </span>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {t('Run agents through Happy for enhanced experience')}
+        </p>
+      </div>
     </div>
   );
 }

@@ -460,6 +460,12 @@ const electronAPI = {
     },
   },
 
+  // Happy
+  happy: {
+    checkGlobal: (forceRefresh?: boolean): Promise<{ installed: boolean; version?: string }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.HAPPY_CHECK_GLOBAL, forceRefresh),
+  },
+
   // Cloudflared Tunnel
   cloudflared: {
     check: (): Promise<{ installed: boolean; version?: string }> =>

@@ -180,6 +180,22 @@ export function AgentSettings() {
   // Hapi-supported agent IDs (only these can run through hapi)
   const HAPI_SUPPORTED_AGENTS: BuiltinAgentId[] = ['claude', 'codex', 'gemini'];
 
+  // Happy-supported agent IDs (only these can run through happy)
+  const HAPPY_SUPPORTED_AGENTS: BuiltinAgentId[] = ['claude', 'codex'];
+
+  // Happy global installation status
+  const [happyGlobal, setHappyGlobal] = React.useState<{
+    installed: boolean;
+    version?: string;
+  }>({ installed: false });
+
+  // Check happy global installation on mount
+  React.useEffect(() => {
+    window.electronAPI.happy.checkGlobal().then((result) => {
+      setHappyGlobal(result);
+    });
+  }, []);
+
   // Get all agents including WSL and Hapi variants
   const allAgentInfos = React.useMemo(() => {
     const infos: Array<{
@@ -246,6 +262,42 @@ export function AgentSettings() {
 
     return infos;
   }, [cliStatus, hapiSettings.enabled]);
+
+  // Get Happy agents (virtual agents that use happy wrapper)
+  // Only shown when happy is globally installed
+  const happyAgentInfos = React.useMemo(() => {
+    if (!happyGlobal.installed) return [];
+
+    const infos: Array<{
+      id: string;
+      baseId: BuiltinAgentId;
+      info: { name: string; description: string };
+      cli?: AgentCliInfo;
+    }> = [];
+
+    for (const agentId of HAPPY_SUPPORTED_AGENTS) {
+      const baseInfo = BUILTIN_AGENT_INFO[agentId];
+      const nativeCli = cliStatus[agentId];
+      const wslCli = cliStatus[`${agentId}-wsl`];
+
+      // Happy agent is available if the base CLI is installed in native OR WSL
+      const baseCli = nativeCli?.installed ? nativeCli : wslCli?.installed ? wslCli : null;
+      if (baseCli) {
+        infos.push({
+          id: `${agentId}-happy`,
+          baseId: agentId,
+          info: { name: `${baseInfo.name}`, description: baseInfo.description },
+          cli: {
+            ...baseCli,
+            id: `${agentId}-happy`,
+            environment: 'happy',
+          },
+        });
+      }
+    }
+
+    return infos;
+  }, [cliStatus, happyGlobal.installed]);
 
   return (
     <div className="space-y-6">
@@ -365,6 +417,58 @@ export function AgentSettings() {
                       <span className="font-medium text-sm">{info.name}</span>
                       <span className="whitespace-nowrap rounded bg-orange-500/10 px-1.5 py-0.5 text-xs text-orange-600 dark:text-orange-400">
                         Hapi
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4 shrink-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-muted-foreground">{t('Enable')}</span>
+                      <Switch
+                        checked={config?.enabled && canEnable}
+                        onCheckedChange={(checked) => handleEnabledChange(agentId, checked)}
+                        disabled={!canEnable}
+                      />
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-muted-foreground">{t('Default')}</span>
+                      <Switch
+                        checked={config?.isDefault ?? false}
+                        onCheckedChange={() => handleDefaultChange(agentId)}
+                        disabled={!canSetDefault}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Happy Agents Section - shown when happy is installed */}
+      {happyAgentInfos.length > 0 && (
+        <div className="border-t pt-4">
+          <div className="mb-3">
+            <h3 className="text-base font-medium">{t('Happy Agents')}</h3>
+            <p className="text-xs text-muted-foreground">{t('Agents running through Happy')}</p>
+          </div>
+          <div className="space-y-2">
+            {happyAgentInfos.map(({ id: agentId, info, cli }) => {
+              const config = agentSettings[agentId];
+              const canEnable = cli?.installed ?? false;
+              const canSetDefault = canEnable && config?.enabled;
+
+              return (
+                <div
+                  key={agentId}
+                  className="flex items-center justify-between rounded-lg border px-3 py-2"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm">{info.name}</span>
+                      <span className="whitespace-nowrap rounded bg-purple-500/10 px-1.5 py-0.5 text-xs text-purple-600 dark:text-purple-400">
+                        Happy
                       </span>
                     </div>
                   </div>

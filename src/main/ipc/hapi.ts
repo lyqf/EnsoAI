@@ -25,6 +25,11 @@ export function registerHapiHandlers(): void {
     return await hapiServerManager.checkGlobalInstall(forceRefresh);
   });
 
+  // Check global happy installation (cached)
+  ipcMain.handle(IPC_CHANNELS.HAPPY_CHECK_GLOBAL, async (_, forceRefresh?: boolean) => {
+    return await hapiServerManager.checkHappyGlobalInstall(forceRefresh);
+  });
+
   // Hapi Server handlers
   ipcMain.handle(IPC_CHANNELS.HAPI_START, async (_, config: HapiConfig) => {
     return await hapiServerManager.start(config);

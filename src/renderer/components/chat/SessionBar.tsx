@@ -10,13 +10,13 @@ const EDGE_THRESHOLD = 20; // pixels from edge
 export interface Session {
   id: string; // UUID, also used for agent --session-id
   name: string;
-  agentId: string; // which agent CLI to use (e.g., 'claude', 'codex', 'gemini', 'codex-wsl', 'claude-hapi')
+  agentId: string; // which agent CLI to use (e.g., 'claude', 'codex', 'gemini', 'codex-wsl', 'claude-hapi', 'claude-happy')
   agentCommand: string; // the CLI command to run (e.g., 'claude', 'codex')
   initialized: boolean; // true after first run, use --resume to restore
   activated?: boolean; // true after user presses Enter, only activated sessions are persisted
   repoPath: string; // repository path this session belongs to
   cwd: string; // worktree path this session belongs to
-  environment?: 'native' | 'wsl' | 'hapi'; // execution environment (default: native)
+  environment?: 'native' | 'wsl' | 'hapi' | 'happy'; // execution environment (default: native)
 }
 
 interface SessionBarProps {
@@ -92,6 +92,29 @@ export function SessionBar({
       if (isHapi) {
         if (!hapiSettings.enabled) return;
         const baseId = agentId.slice(0, -5);
+        const customAgent = customAgents.find((a) => a.id === baseId);
+        // Check native first
+        const nativeResult = await window.electronAPI.cli.detectOne(baseId, customAgent);
+        if (nativeResult.installed) {
+          newInstalled.add(agentId);
+          return;
+        }
+        // If not installed natively, check WSL (Windows only)
+        const wslResult = await window.electronAPI.cli.detectOne(`${baseId}-wsl`, customAgent);
+        if (wslResult.installed) {
+          newInstalled.add(agentId);
+        }
+        return;
+      }
+
+      // Handle Happy agents: they are virtual, require happy global installation and base CLI
+      const isHappy = agentId.endsWith('-happy');
+      if (isHappy) {
+        // Check if happy is globally installed first
+        const happyStatus = await window.electronAPI.happy.checkGlobal();
+        if (!happyStatus.installed) return;
+
+        const baseId = agentId.slice(0, -6);
         const customAgent = customAgents.find((a) => a.id === baseId);
         // Check native first
         const nativeResult = await window.electronAPI.cli.detectOne(baseId, customAgent);
@@ -241,10 +264,17 @@ export function SessionBar({
 
   const handleSelectAgent = useCallback(
     (agentId: string) => {
-      // Handle WSL and Hapi agent IDs (e.g., 'codex-wsl' -> base is 'codex', 'claude-hapi' -> base is 'claude')
+      // Handle WSL, Hapi and Happy agent IDs (e.g., 'codex-wsl' -> base is 'codex', 'claude-hapi' -> base is 'claude', 'claude-happy' -> base is 'claude')
       const isWsl = agentId.endsWith('-wsl');
       const isHapi = agentId.endsWith('-hapi');
-      const baseId = isWsl ? agentId.slice(0, -4) : isHapi ? agentId.slice(0, -5) : agentId;
+      const isHappy = agentId.endsWith('-happy');
+      const baseId = isWsl
+        ? agentId.slice(0, -4)
+        : isHapi
+          ? agentId.slice(0, -5)
+          : isHappy
+            ? agentId.slice(0, -6)
+            : agentId;
 
       const customAgent = customAgents.find((a) => a.id === baseId);
       const info = customAgent
@@ -371,18 +401,23 @@ export function SessionBar({
                     {enabledAgents.map((agentId) => {
                       const isWsl = agentId.endsWith('-wsl');
                       const isHapi = agentId.endsWith('-hapi');
+                      const isHappy = agentId.endsWith('-happy');
                       const baseId = isWsl
                         ? agentId.slice(0, -4)
                         : isHapi
                           ? agentId.slice(0, -5)
-                          : agentId;
+                          : isHappy
+                            ? agentId.slice(0, -6)
+                            : agentId;
                       const customAgent = customAgents.find((a) => a.id === baseId);
                       const baseName = customAgent?.name ?? AGENT_INFO[baseId]?.name ?? baseId;
                       const name = isWsl
                         ? `${baseName} (WSL)`
                         : isHapi
                           ? `${baseName} (Hapi)`
-                          : baseName;
+                          : isHappy
+                            ? `${baseName} (Happy)`
+                            : baseName;
                       const isDefault = agentSettings[agentId]?.isDefault;
                       return (
                         <button

@@ -11,7 +11,7 @@ interface AgentTerminalProps {
   cwd?: string;
   sessionId?: string;
   agentCommand?: string;
-  environment?: 'native' | 'wsl' | 'hapi';
+  environment?: 'native' | 'wsl' | 'hapi' | 'happy';
   initialized?: boolean;
   activated?: boolean;
   isActive?: boolean;
@@ -114,6 +114,33 @@ export function AgentTerminal({
         command: {
           shell,
           args: ['-i', '-l', '-c', hapiCommand],
+        },
+        env: envVars,
+      };
+    }
+
+    // Happy environment: run through 'happy' command
+    // claude -> happy (claude is default), codex -> happy codex
+    if (environment === 'happy') {
+      const happyArgs = agentCommand === 'claude' ? '' : agentCommand;
+      const happyCommand = `happy ${happyArgs} ${agentArgs.join(' ')}`.trim();
+
+      if (isWindows) {
+        return {
+          command: {
+            shell: 'cmd.exe',
+            args: ['/c', happyCommand],
+          },
+          env: envVars,
+        };
+      }
+
+      const shells = ['/bin/zsh', '/bin/bash', '/bin/sh'];
+      const shell = shells[0];
+      return {
+        command: {
+          shell,
+          args: ['-i', '-l', '-c', happyCommand],
         },
         env: envVars,
       };
