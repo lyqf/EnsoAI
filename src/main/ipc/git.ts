@@ -493,4 +493,25 @@ ${gitLog || '(No commit history available)'}`;
       activeCodeReviews.delete(reviewId);
     }
   });
+
+  // GitHub CLI - Status
+  ipcMain.handle(IPC_CHANNELS.GIT_GH_STATUS, async (_, workdir: string) => {
+    const git = getGitService(workdir);
+    return git.getGhCliStatus();
+  });
+
+  // GitHub CLI - List PRs
+  ipcMain.handle(IPC_CHANNELS.GIT_PR_LIST, async (_, workdir: string) => {
+    const git = getGitService(workdir);
+    return git.listPullRequests();
+  });
+
+  // GitHub CLI - Checkout PR
+  ipcMain.handle(
+    IPC_CHANNELS.GIT_PR_CHECKOUT,
+    async (_, workdir: string, prNumber: number, localBranch?: string) => {
+      const git = getGitService(workdir);
+      return git.checkoutPullRequest(prNumber, localBranch);
+    }
+  );
 }
