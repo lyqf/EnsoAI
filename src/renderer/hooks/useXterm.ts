@@ -373,6 +373,33 @@ export function useXterm({
         return false;
       }
 
+      // Windows/Linux: Ctrl+C to copy (when text is selected), Ctrl+V to paste
+      // On macOS, Cmd+C/V is handled by the browser natively
+      const platform = window.electronAPI.platform;
+      if (platform !== 'darwin' && event.type === 'keydown' && event.ctrlKey && !event.altKey) {
+        // Ctrl+Shift+C: Always send SIGINT (for users who need to interrupt even with selection)
+        // Ctrl+C: Copy if has selection, otherwise let terminal handle (SIGINT)
+        if (event.key === 'c' || event.key === 'C') {
+          if (!event.shiftKey && terminal.hasSelection()) {
+            navigator.clipboard.writeText(terminal.getSelection());
+            return false;
+          }
+          // Let Ctrl+C pass through to terminal as SIGINT when no selection
+        }
+        // Ctrl+V or Ctrl+Shift+V: Paste from clipboard
+        if (event.key === 'v' || event.key === 'V') {
+          navigator.clipboard
+            .readText()
+            .then((text) => {
+              terminal.paste(text);
+            })
+            .catch(() => {
+              // Clipboard access denied or empty, ignore silently
+            });
+          return false;
+        }
+      }
+
       // macOS-style navigation shortcuts (only on keydown to avoid double-firing)
       if (event.type === 'keydown' && ptyIdRef.current) {
         // Cmd+Left: jump to line start (Ctrl+A)
