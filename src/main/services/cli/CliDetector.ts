@@ -442,10 +442,20 @@ class CliDetector {
         }
       }
     } catch {
-      // If batch fails, mark all as not installed
-      for (const { id } of allCommands) {
-        results.set(id, { installed: false });
-      }
+      // Batch failed, fallback to individual detection
+      const detectPromises = allCommands.map(async ({ id, command, versionRegex }) => {
+        try {
+          const output = await this.execInLoginShell(command, 5000);
+          const versionMatch = versionRegex ? output.match(versionRegex) : null;
+          results.set(id, {
+            installed: true,
+            version: versionMatch ? versionMatch[1] : undefined,
+          });
+        } catch {
+          results.set(id, { installed: false });
+        }
+      });
+      await Promise.all(detectPromises);
     }
 
     return results;
@@ -518,9 +528,22 @@ class CliDetector {
         }
       }
     } catch {
-      for (const { id } of allCommands) {
-        results.set(id, { installed: false });
-      }
+      // Batch failed, fallback to individual detection
+      const detectPromises = allCommands.map(async ({ id, command, versionRegex }) => {
+        try {
+          const { stdout } = await execAsync(`wsl -- sh -c 'exec $SHELL -ilc "${command}"'`, {
+            timeout: 8000,
+          });
+          const versionMatch = versionRegex ? stdout.match(versionRegex) : null;
+          results.set(id, {
+            installed: true,
+            version: versionMatch ? versionMatch[1] : undefined,
+          });
+        } catch {
+          results.set(id, { installed: false });
+        }
+      });
+      await Promise.all(detectPromises);
     }
 
     return results;
