@@ -183,6 +183,8 @@ export class PtyManager {
     }
 
     let ptyProcess: pty.IPty;
+    // Login shell loads user's PATH from profile, no need to enhance
+
     try {
       ptyProcess = pty.spawn(shell, args, {
         name: 'xterm-256color',
@@ -193,7 +195,6 @@ export class PtyManager {
           ...process.env,
           ...getProxyEnvVars(),
           ...options.env,
-          PATH: getEnhancedPath(),
           TERM: 'xterm-256color',
           COLORTERM: 'truecolor',
           // Ensure proper locale for UTF-8 support (GUI apps may not inherit LANG)
@@ -216,7 +217,6 @@ export class PtyManager {
               ...process.env,
               ...getProxyEnvVars(),
               ...options.env,
-              PATH: getEnhancedPath(),
               TERM: 'xterm-256color',
               COLORTERM: 'truecolor',
               // Ensure proper locale for UTF-8 support (GUI apps may not inherit LANG)
