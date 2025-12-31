@@ -369,7 +369,10 @@ export function TreeSidebar({
             projectName={selectedRepo?.split('/').pop() || ''}
             workdir={workdir}
             isLoading={isCreating}
-            onSubmit={onCreateWorktree}
+            onSubmit={async (options) => {
+              await onCreateWorktree(options);
+              refetchExpandedWorktrees();
+            }}
             trigger={
               <button
                 type="button"
@@ -525,14 +528,17 @@ export function TreeSidebar({
                   {isExpanded && (
                     <div className="ml-4 mt-1 space-y-0.5">
                       {repoError ? (
-                        <div className="py-2 px-2 text-xs text-muted-foreground">
+                        <div className="py-2 px-2 text-xs text-muted-foreground flex flex-col items-center gap-1.5">
                           <span className="text-destructive">{t('Not a Git repository')}</span>
                           {onInitGit && isSelected && (
                             <Button
-                              onClick={onInitGit}
+                              onClick={async () => {
+                                await onInitGit();
+                                refetchExpandedWorktrees();
+                              }}
                               size="sm"
                               variant="ghost"
-                              className="ml-2 h-6 text-xs"
+                              className="h-6 text-xs w-fit"
                             >
                               <GitBranch className="mr-1 h-3 w-3" />
                               {t('Init')}
@@ -756,6 +762,7 @@ export function TreeSidebar({
                     setWorktreeToDelete(null);
                     setDeleteBranch(false);
                     setForceDelete(false);
+                    refetchExpandedWorktrees();
                   } catch (err) {
                     const message = err instanceof Error ? err.message : String(err);
                     const hasUncommitted = message.includes('modified or untracked');

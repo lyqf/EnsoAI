@@ -140,6 +140,15 @@ export class WorktreeService {
   }
 
   async add(options: WorktreeCreateOptions): Promise<void> {
+    // Check if repository has any commits
+    try {
+      await this.git.raw(['rev-parse', 'HEAD']);
+    } catch {
+      throw new Error(
+        'Cannot create worktree: repository has no commits. Please create an initial commit first.'
+      );
+    }
+
     const args = ['worktree', 'add'];
 
     if (options.newBranch) {

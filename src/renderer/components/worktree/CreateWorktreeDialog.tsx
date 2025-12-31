@@ -195,7 +195,9 @@ export function CreateWorktreeDialog({
         return;
       }
 
-      if (!baseBranch) {
+      // Use baseBranch state, or fall back to current branch if state wasn't set
+      const effectiveBaseBranch = baseBranch || currentBranch?.name;
+      if (!effectiveBaseBranch) {
         setError(t('Select base branch'));
         return;
       }
@@ -208,7 +210,7 @@ export function CreateWorktreeDialog({
       try {
         await onSubmit({
           path: getWorktreePath(newBranchName),
-          branch: baseBranch,
+          branch: effectiveBaseBranch,
           newBranch: newBranchName,
         });
         setOpen(false);
