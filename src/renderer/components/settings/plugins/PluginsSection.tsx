@@ -10,7 +10,7 @@ import { PluginBrowserDialog } from './PluginBrowserDialog';
 
 export function PluginsSection() {
   const { t } = useI18n();
-  const [expanded, setExpanded] = React.useState(true);
+  const [expanded, setExpanded] = React.useState(false);
   const [plugins, setPlugins] = React.useState<Plugin[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [uninstalling, setUninstalling] = React.useState<string | null>(null);

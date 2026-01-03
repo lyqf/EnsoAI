@@ -798,7 +798,7 @@ export const zhTranslations: Record<string, string> = {
   'Prompt activated': '提示词已激活',
   'Failed to activate prompt': '激活提示词失败',
   'Prompt saved': '提示词已保存',
-  'Current CLAUDE.md not saved': '当前 CLAUDE.md 未保存',
+  'Current CLAUDE.md not saved': '当前内容未保存为预设',
   'Edit Prompt': '编辑提示词',
   'Add Prompt': '添加提示词',
   'Create or edit a prompt preset for CLAUDE.md': '创建或编辑 CLAUDE.md 提示词预设',

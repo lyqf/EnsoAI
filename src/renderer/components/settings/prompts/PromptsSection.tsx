@@ -95,14 +95,17 @@ export function PromptsSection() {
         setCurrentContent(preset.content);
       }
     } else {
-      addPromptPreset(preset);
-      // 如果这是第一个预设，自动激活
-      if (promptPresets.length === 0 || preset.enabled) {
-        await window.electronAPI.claudeConfig.prompts.write(preset.content);
-        setCurrentContent(preset.content);
+      // 如果是从当前内容保存，或者是第一个预设，自动激活
+      const shouldActivate = saveFromCurrent || promptPresets.length === 0;
+      const presetToSave = shouldActivate ? { ...preset, enabled: true } : preset;
+      addPromptPreset(presetToSave);
+      if (shouldActivate) {
+        setPromptPresetEnabled(presetToSave.id);
+        setCurrentContent(presetToSave.content);
       }
     }
     setDialogOpen(false);
+    setSaveFromCurrent(false);
     toastManager.add({ type: 'success', title: t('Prompt saved') });
   };
 
@@ -166,7 +169,7 @@ export function PromptsSection() {
                 key={preset.id}
                 className={cn(
                   'flex items-center justify-between rounded-md px-3 py-2',
-                  preset.enabled ? 'bg-accent' : 'bg-muted/50 hover:bg-muted'
+                  preset.enabled ? 'bg-accent text-accent-foreground' : 'bg-muted/50 hover:bg-muted'
                 )}
               >
                 <div
@@ -182,7 +185,7 @@ export function PromptsSection() {
                   }}
                 >
                   {preset.enabled ? (
-                    <Check className="h-4 w-4 text-primary shrink-0" />
+                    <Check className="h-4 w-4 shrink-0" />
                   ) : (
                     <div className="h-4 w-4 rounded-full border border-muted-foreground shrink-0" />
                   )}

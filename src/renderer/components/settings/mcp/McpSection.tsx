@@ -45,7 +45,7 @@ function configToServer(id: string, config: McpServerConfig): McpServer {
 
 export function McpSection() {
   const { t } = useI18n();
-  const [expanded, setExpanded] = React.useState(true);
+  const [expanded, setExpanded] = React.useState(false);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editingServer, setEditingServer] = React.useState<McpStdioServer | null>(null);
   const [initialized, setInitialized] = React.useState(false);
