@@ -52,8 +52,8 @@ jobs:
           echo "ARM64 SHA256: $ARM64_SHA"
 
           echo "Downloading x64 DMG..."
-          curl -sLO "https://github.com/J3n5en/EnsoAI/releases/download/${TAG}/EnsoAI-${VERSION}-x64.dmg"
-          X64_SHA=$(shasum -a 256 "EnsoAI-${VERSION}-x64.dmg" | cut -d' ' -f1)
+          curl -sLO "https://github.com/J3n5en/EnsoAI/releases/download/${TAG}/EnsoAI-${VERSION}.dmg"
+          X64_SHA=$(shasum -a 256 "EnsoAI-${VERSION}.dmg" | cut -d' ' -f1)
           echo "x64 SHA256: $X64_SHA"
 
           echo "arm64=$ARM64_SHA" >> $GITHUB_OUTPUT
@@ -82,7 +82,7 @@ jobs:
               url "https://github.com/J3n5en/EnsoAI/releases/download/v#{version}/EnsoAI-#{version}-arm64.dmg"
             end
             on_intel do
-              url "https://github.com/J3n5en/EnsoAI/releases/download/v#{version}/EnsoAI-#{version}-x64.dmg"
+              url "https://github.com/J3n5en/EnsoAI/releases/download/v#{version}/EnsoAI-#{version}.dmg"
             end
 
             name "EnsoAI"
