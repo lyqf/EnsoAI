@@ -14,6 +14,8 @@ import { createGeminiCli } from 'ai-sdk-provider-gemini-cli-agentic';
 
 export type { AIProvider, ModelId, ReasoningEffort } from '@shared/types';
 
+const isWindows = process.platform === 'win32';
+
 // Claude Code provider with read-only permissions
 const claudeCodeProvider = createClaudeCode({
   defaultSettings: {
@@ -26,6 +28,7 @@ const claudeCodeProvider = createClaudeCode({
         env: options.env as NodeJS.ProcessEnv,
         signal: options.signal,
         stdio: ['pipe', 'pipe', 'pipe'],
+        shell: isWindows, // Windows needs shell to resolve .cmd files
       });
       return {
         stdin: proc.stdin,
@@ -48,7 +51,6 @@ const claudeCodeProvider = createClaudeCode({
 // Codex CLI provider with read-only sandbox
 const codexCliProvider = createCodexCli({
   defaultSettings: {
-    codexPath: 'codex',
     sandboxMode: 'read-only',
   },
 });

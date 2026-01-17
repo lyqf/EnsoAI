@@ -18,10 +18,28 @@ const activeReviews = new Map<string, AbortController>();
 
 function runGit(cmd: string, cwd: string): string {
   try {
-    return execSync(cmd, { cwd, encoding: 'utf-8', timeout: 10000 }).trim();
+    return execSync(cmd, {
+      cwd,
+      encoding: 'utf-8',
+      timeout: 10000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
   } catch {
     return '';
   }
+}
+
+function getDefaultBranch(workdir: string): string {
+  // Try to get the default branch from remote HEAD reference
+  const ref = runGit('git symbolic-ref refs/remotes/origin/HEAD', workdir);
+  if (ref) {
+    // Extract branch name from "refs/remotes/origin/main" -> "main"
+    const match = ref.match(/refs\/remotes\/origin\/(.+)$/);
+    if (match) {
+      return match[1];
+    }
+  }
+  return 'main';
 }
 
 function buildPrompt(gitDiff: string, gitLog: string, language: string): string {
@@ -74,15 +92,12 @@ export async function startCodeReview(options: CodeReviewOptions): Promise<void>
   } = options;
 
   const gitDiff = runGit('git --no-pager diff HEAD', workdir);
-  const defaultBranch =
-    runGit(
-      "git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@'",
-      workdir
-    ) || 'main';
-  const gitLog = runGit(
-    `git --no-pager log origin/${defaultBranch}..HEAD --oneline 2>/dev/null || git --no-pager log -10 --oneline`,
-    workdir
-  );
+  const defaultBranch = getDefaultBranch(workdir);
+  // Try to get commits since diverging from default branch, fallback to recent commits
+  let gitLog = runGit(`git --no-pager log origin/${defaultBranch}..HEAD --oneline`, workdir);
+  if (!gitLog) {
+    gitLog = runGit('git --no-pager log -10 --oneline', workdir);
+  }
 
   if (!gitDiff && !gitLog) {
     onError('No changes to review');

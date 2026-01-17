@@ -108,6 +108,9 @@
       "dmg-builder": "26.4.0",
       "app-builder-lib": "26.4.0",
       "electron-builder-squirrel-windows": "26.4.0"
+    },
+    "patchedDependencies": {
+      "ai-sdk-provider-codex-cli": "patches/ai-sdk-provider-codex-cli.patch"
     }
   }
 }
