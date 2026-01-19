@@ -76,8 +76,8 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4(patch_hash=ff47b1b3e929ca7c9a91fe74fc29c0b78e1e9ee85cc0f6ae52caaf685493d73e)(zod@4.3.5)
       ai-sdk-provider-gemini-cli-agentic:
-        specifier: ^0.1.2
-        version: 0.1.2(zod@4.3.5)
+        specifier: ^0.1.3
+        version: 0.1.3(zod@4.3.5)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1586,8 +1586,8 @@ packages:
     peerDependencies:
       zod: ^3.0.0 || ^4.0.0
 
-  ai-sdk-provider-gemini-cli-agentic@0.1.2:
-    resolution: {integrity: sha512-LCFdR7GiE32Lgi6jA1nGft4rCrTNf9L4njwDUJG5Rll+BCFVF0UE+D5MxukIUyNabfNhgqQN5H+htpS96ZaUWQ==}
+  ai-sdk-provider-gemini-cli-agentic@0.1.3:
+    resolution: {integrity: sha512-QQrhOe0SHcFhItP3JYSHVpdIEL1WhoZdXuLnx2aSCGzhH810aqKc53GC2ad7EFUB0uCUOPF9y2gZOTMPycKg3Q==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.0.0 || ^4.0.0
@@ -5184,7 +5184,7 @@ snapshots:
     optionalDependencies:
       '@openai/codex': 0.77.0
 
-  ai-sdk-provider-gemini-cli-agentic@0.1.2(zod@4.3.5):
+  ai-sdk-provider-gemini-cli-agentic@0.1.3(zod@4.3.5):
     dependencies:
       '@ai-sdk/provider': 3.0.4
       '@ai-sdk/provider-utils': 4.0.8(zod@4.3.5)
