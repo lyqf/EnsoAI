@@ -211,8 +211,8 @@ export function parseGeminiJsonOutput(stdout: string): ParsedCLIResult {
       if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
         try {
           const result = JSON.parse(trimmed);
-          if (result.type === 'result' || result.content || result.text) {
-            return { success: true, text: result.result || result.content || result.text };
+          if (result.type === 'result' || result.content || result.text || result.response) {
+            return { success: true, text: result.result || result.content || result.text || result.response };
           }
         } catch {}
       }
@@ -225,8 +225,8 @@ export function parseGeminiJsonOutput(stdout: string): ParsedCLIResult {
     if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
       jsonStr = jsonStr.slice(jsonStart, jsonEnd + 1);
       const result = JSON.parse(jsonStr);
-      if (result.result || result.content || result.text) {
-        return { success: true, text: result.result || result.content || result.text };
+      if (result.result || result.content || result.text || result.response) {
+        return { success: true, text: result.result || result.content || result.text || result.response };
       }
     }
 
