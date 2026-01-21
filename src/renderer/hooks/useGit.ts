@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRepositoryStore } from '@/stores/repository';
+import { useShouldPoll } from './useWindowFocus';
 
 export function useGitStatus(workdir: string | null, isActive = true) {
   const setStatus = useRepositoryStore((s) => s.setStatus);
+  const shouldPoll = useShouldPoll();
 
   return useQuery({
     queryKey: ['git', 'status', workdir],
@@ -13,7 +15,7 @@ export function useGitStatus(workdir: string | null, isActive = true) {
       return status;
     },
     enabled: !!workdir,
-    refetchInterval: isActive ? 5000 : false,
+    refetchInterval: isActive && shouldPoll ? 5000 : false,
     refetchIntervalInBackground: false,
   });
 }

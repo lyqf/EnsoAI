@@ -1,10 +1,13 @@
 import type { FileChangesResult } from '@shared/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toastManager } from '@/components/ui/toast';
+import { useShouldPoll } from '@/hooks/useWindowFocus';
 
 const emptyResult: FileChangesResult = { changes: [] };
 
 export function useFileChanges(workdir: string | null, isActive = true) {
+  const shouldPoll = useShouldPoll();
+
   return useQuery({
     queryKey: ['git', 'file-changes', workdir],
     queryFn: async () => {
@@ -12,7 +15,7 @@ export function useFileChanges(workdir: string | null, isActive = true) {
       return window.electronAPI.git.getFileChanges(workdir);
     },
     enabled: !!workdir,
-    refetchInterval: isActive ? 5000 : false, // Only poll when tab is active
+    refetchInterval: isActive && shouldPoll ? 5000 : false, // Only poll when tab is active and user is not idle
     refetchIntervalInBackground: false, // Only poll when window is focused
     staleTime: 2000, // Avoid redundant requests within 2s
   });
