@@ -37,6 +37,7 @@ interface ChangesListProps {
   onRefresh?: () => void;
   isRefreshing?: boolean;
   repoPath?: string;
+  sessionId?: string | null;
 }
 
 // M=Modified, A=Added, D=Deleted, R=Renamed, C=Copied, U=Untracked, X=Conflict
@@ -145,6 +146,7 @@ export function ChangesList({
   onRefresh,
   isRefreshing,
   repoPath,
+  sessionId,
 }: ChangesListProps) {
   const { t } = useI18n();
   const { viewMode, setViewMode } = useSourceControlStore();
@@ -246,6 +248,7 @@ export function ChangesList({
           open={isReviewModalOpen}
           onOpenChange={setIsReviewModalOpen}
           repoPath={repoPath}
+          sessionId={sessionId}
         />
       </div>
     );
@@ -417,6 +420,7 @@ export function ChangesList({
         open={isReviewModalOpen}
         onOpenChange={setIsReviewModalOpen}
         repoPath={repoPath}
+        sessionId={sessionId}
       />
     </div>
   );

@@ -5,6 +5,7 @@ import {
   Loader2,
   MessageSquare,
   Minimize2,
+  Send,
   XCircle,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef } from 'react';
@@ -30,6 +31,7 @@ import { useCodeReview } from '@/hooks/useCodeReview';
 import { useI18n } from '@/i18n';
 import { stopCodeReview, useCodeReviewContinueStore } from '@/stores/codeReviewContinue';
 import { useSettingsStore } from '@/stores/settings';
+import { useTerminalWriteStore } from '@/stores/terminalWrite';
 
 const markdownComponents: Components = {
   pre: ({ children }) => <>{children}</>,
@@ -118,18 +120,23 @@ interface CodeReviewModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   repoPath: string | undefined;
+  sessionId?: string | null; // Current active chat session
 }
 
-export function CodeReviewModal({ open, onOpenChange, repoPath }: CodeReviewModalProps) {
+export function CodeReviewModal({ open, onOpenChange, repoPath, sessionId }: CodeReviewModalProps) {
   const { t } = useI18n();
   const { content, status, error, startReview, reset } = useCodeReview({ repoPath });
   const codeReviewSettings = useSettingsStore((s) => s.codeReview);
 
   const reviewRepoPath = useCodeReviewContinueStore((s) => s.review.repoPath);
-  const sessionId = useCodeReviewContinueStore((s) => s.review.sessionId); // Get sessionId for continue conversation
+  const reviewSessionId = useCodeReviewContinueStore((s) => s.review.sessionId); // For continue conversation
   const minimize = useCodeReviewContinueStore((s) => s.minimize);
   const isMinimized = useCodeReviewContinueStore((s) => s.isMinimized);
   const requestContinue = useCodeReviewContinueStore((s) => s.requestContinue);
+  const requestChatTabSwitch = useCodeReviewContinueStore((s) => s.requestChatTabSwitch);
+  const write = useTerminalWriteStore((s) => s.write);
+  const focus = useTerminalWriteStore((s) => s.focus);
+  const hasWriter = useTerminalWriteStore((s) => (sessionId ? s.writers.has(sessionId) : false));
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const autoScrollRef = useRef(true);
@@ -204,11 +211,19 @@ export function CodeReviewModal({ open, onOpenChange, repoPath }: CodeReviewModa
   }, [reset, onOpenChange]);
 
   const handleContinueConversation = useCallback(() => {
-    if (sessionId) {
-      requestContinue(sessionId);
+    if (reviewSessionId) {
+      requestContinue(reviewSessionId);
       onOpenChange(false);
     }
-  }, [sessionId, requestContinue, onOpenChange]);
+  }, [reviewSessionId, requestContinue, onOpenChange]);
+
+  const handleSendToCurrentSession = useCallback(() => {
+    if (!sessionId || !hasWriter || !content) return;
+    write(sessionId, `${content}\r`);
+    focus(sessionId);
+    requestChatTabSwitch();
+    onOpenChange(false);
+  }, [sessionId, hasWriter, content, write, focus, requestChatTabSwitch, onOpenChange]);
 
   const StatusIcon = () => {
     switch (status) {
@@ -301,6 +316,12 @@ export function CodeReviewModal({ open, onOpenChange, repoPath }: CodeReviewModa
             <Button variant="outline" onClick={handleContinueConversation}>
               <MessageSquare className="h-4 w-4 mr-2" />
               {t('Continue Conversation')}
+            </Button>
+          )}
+          {content && sessionId && (
+            <Button variant="outline" onClick={handleSendToCurrentSession} disabled={!hasWriter}>
+              <Send className="h-4 w-4 mr-2" />
+              发送到当前会话
             </Button>
           )}
           <DialogClose

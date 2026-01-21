@@ -443,6 +443,7 @@ export function SourceControlPanel({
                           }}
                           isRefreshing={isFetching || fetchMutation.isPending}
                           repoPath={rootPath}
+                          sessionId={sessionId}
                         />
                       </div>
                       {/* Commit Box */}

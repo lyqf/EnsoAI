@@ -34,6 +34,7 @@ interface CodeReviewContinueState {
 
   // Continue conversation actions
   requestContinue: (sessionId: string) => void;
+  requestChatTabSwitch: () => void;
   clearContinueRequest: () => void;
   clearChatTabSwitch: () => void;
 }
@@ -94,6 +95,13 @@ export const useCodeReviewContinueStore = create<CodeReviewContinueState>((set) 
       },
     });
   },
+  requestChatTabSwitch: () =>
+    set((state) => ({
+      continueConversation: {
+        ...state.continueConversation,
+        shouldSwitchToChatTab: true,
+      },
+    })),
   clearContinueRequest: () =>
     set((state) => ({
       continueConversation: {
