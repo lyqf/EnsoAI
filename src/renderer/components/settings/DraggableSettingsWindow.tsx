@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { useI18n } from '@/i18n';
 import { scaleInVariants, springFast } from '@/lib/motion';
 import { cn } from '@/lib/utils';
+import { Z_INDEX } from '@/lib/z-index';
 import { useSettingsStore } from '@/stores/settings';
 import type { SettingsCategory } from './constants';
 import { SettingsContent } from './SettingsContent';
@@ -38,7 +39,6 @@ export function DraggableSettingsWindow({
   // 窗口尺寸常量
   const WINDOW_WIDTH = 896; // max-w-4xl
   const WINDOW_HEIGHT = 600;
-  const Z_INDEX = 100; // 高于其他模态窗口
 
   // 居中计算和位置验证
   useEffect(() => {
@@ -145,11 +145,13 @@ export function DraggableSettingsWindow({
             transition={springFast}
             className="fixed flex flex-col rounded-2xl border bg-popover shadow-lg"
             style={{
-              left: `${position.x}px`,
-              top: `${position.y}px`,
+              left: 0,
+              top: 0,
+              transform: `translate3d(${position.x}px, ${position.y}px, 0)`,
               width: `${WINDOW_WIDTH}px`,
               height: `${WINDOW_HEIGHT}px`,
-              zIndex: Z_INDEX,
+              zIndex: Z_INDEX.FLOATING_WINDOW,
+              willChange: isDragging ? 'transform' : 'auto',
             }}
           >
             {/* 可拖动标题栏 */}
@@ -167,10 +169,10 @@ export function DraggableSettingsWindow({
                   type="button"
                   onClick={() => setSettingsDisplayMode('tab')}
                   className="flex h-6 items-center gap-1 rounded px-2 text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
-                  title="将设置窗口切换为 TAB 标签页模式"
+                  title={t('Switch to TAB mode')}
                 >
                   <LayoutGrid className="h-3 w-3" />
-                  切换为 TAB 模式
+                  {t('Switch to TAB mode')}
                 </button>
                 <button
                   type="button"

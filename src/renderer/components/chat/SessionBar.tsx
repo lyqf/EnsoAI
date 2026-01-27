@@ -1,9 +1,10 @@
 import type { ClaudeProvider } from '@shared/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, Circle, GripVertical, Plus, Sparkles, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Ban, Check, CheckCircle, Circle, GripVertical, Plus, Sparkles, X } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GlowCard, useGlowEffectEnabled } from '@/components/ui/glow-card';
 import { toastManager } from '@/components/ui/toast';
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip';
 import { useSessionOutputState } from '@/hooks/useOutputState';
 import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
@@ -89,6 +90,112 @@ interface SessionTabProps {
   onDragLeave: () => void;
   onDrop: (e: React.DragEvent) => void;
 }
+
+interface ProviderMenuItemProps {
+  provider: ClaudeProvider;
+  isActive: boolean;
+  isDisabled: boolean;
+  isPending: boolean;
+  activeProviderId: string | undefined;
+  providers: ClaudeProvider[];
+  onApplyProvider: (provider: ClaudeProvider) => void;
+  onCloseMenu: () => void;
+  setClaudeProviderEnabled: (id: string, enabled: boolean) => void;
+  t: (key: string) => string;
+}
+
+const ProviderMenuItem = React.memo(function ProviderMenuItem({
+  provider,
+  isActive,
+  isDisabled,
+  isPending,
+  activeProviderId,
+  providers,
+  onApplyProvider,
+  onCloseMenu,
+  setClaudeProviderEnabled,
+  t,
+}: ProviderMenuItemProps) {
+  const handleSwitch = useCallback(() => {
+    if (!isActive && !isDisabled) {
+      onApplyProvider(provider);
+      onCloseMenu();
+    }
+  }, [isActive, isDisabled, provider, onApplyProvider, onCloseMenu]);
+
+  const handleToggleEnabled = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      const isCurrentlyEnabled = provider.enabled !== false;
+      setClaudeProviderEnabled(provider.id, !isCurrentlyEnabled);
+
+      // 禁用当前激活的 Provider 时，自动切换到下一个可用的 Provider
+      if (isCurrentlyEnabled && activeProviderId === provider.id) {
+        const nextEnabledProvider = providers.find(
+          (p) => p.id !== provider.id && p.enabled !== false
+        );
+        if (nextEnabledProvider) {
+          onApplyProvider(nextEnabledProvider);
+        }
+      }
+    },
+    [provider, activeProviderId, providers, setClaudeProviderEnabled, onApplyProvider]
+  );
+
+  return (
+    <div
+      className={cn(
+        'flex w-full items-center gap-1 rounded-md px-2 py-1.5 text-sm transition-colors',
+        isDisabled && 'opacity-60'
+      )}
+    >
+      {/* 主按钮区域：切换 Provider */}
+      <button
+        type="button"
+        onClick={handleSwitch}
+        disabled={isPending || isDisabled}
+        className={cn(
+          'flex flex-1 items-center gap-2 whitespace-nowrap rounded-sm px-1',
+          isActive
+            ? 'text-foreground'
+            : isDisabled
+              ? 'cursor-not-allowed text-muted-foreground'
+              : 'text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground',
+          isPending && 'opacity-50 cursor-not-allowed'
+        )}
+      >
+        {isActive ? (
+          <CheckCircle className="h-4 w-4 shrink-0" />
+        ) : (
+          <Circle className="h-4 w-4 shrink-0" />
+        )}
+        <span className={cn('flex-1 text-left', isDisabled && 'line-through')}>
+          {provider.name}
+        </span>
+      </button>
+
+      {/* 禁用/启用按钮 */}
+      <Tooltip>
+        <TooltipTrigger>
+          <button
+            type="button"
+            onClick={handleToggleEnabled}
+            className="shrink-0 rounded p-0.5 hover:bg-accent"
+          >
+            {isDisabled ? (
+              <Check className="h-3.5 w-3.5 text-muted-foreground" />
+            ) : (
+              <Ban className="h-3.5 w-3.5 text-muted-foreground" />
+            )}
+          </button>
+        </TooltipTrigger>
+        <TooltipPopup side="right">
+          {isDisabled ? t('Click to enable this Provider') : t('Click to disable this Provider')}
+        </TooltipPopup>
+      </Tooltip>
+    </div>
+  );
+});
 
 function SessionTab({
   session,
@@ -291,6 +398,7 @@ export function SessionBar({
   const showProviderSwitcher = useSettingsStore(
     (s) => s.claudeCodeIntegration.showProviderSwitcher ?? true
   );
+  const setClaudeProviderEnabled = useSettingsStore((s) => s.setClaudeProviderEnabled);
 
   const { data: claudeData } = useQuery({
     queryKey: ['claude-settings'],
@@ -335,6 +443,18 @@ export function SessionBar({
     if (name.length <= 15) return name;
     return `${name.slice(0, 14)}...`;
   };
+
+  // 稳定的 Provider 回调函数
+  const handleApplyProvider = useCallback(
+    (provider: ClaudeProvider) => {
+      applyProvider.mutate(provider);
+    },
+    [applyProvider]
+  );
+
+  const handleCloseProviderMenu = useCallback(() => {
+    setShowProviderMenu(false);
+  }, []);
 
   // Tab drag reorder
   const draggedTabIndexRef = useRef<number | null>(null);
@@ -768,32 +888,22 @@ export function SessionBar({
                         </div>
                         {providers.map((provider) => {
                           const isActive = activeProvider?.id === provider.id;
+                          const isDisabled = provider.enabled === false;
+
                           return (
-                            <button
-                              type="button"
+                            <ProviderMenuItem
                               key={provider.id}
-                              onClick={() => {
-                                if (!isActive) {
-                                  applyProvider.mutate(provider);
-                                }
-                                setShowProviderMenu(false);
-                              }}
-                              disabled={applyProvider.isPending}
-                              className={cn(
-                                'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors whitespace-nowrap',
-                                isActive
-                                  ? 'text-foreground'
-                                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                                applyProvider.isPending && 'opacity-50 cursor-not-allowed'
-                              )}
-                            >
-                              {isActive ? (
-                                <CheckCircle className="h-4 w-4 shrink-0" />
-                              ) : (
-                                <Circle className="h-4 w-4 shrink-0" />
-                              )}
-                              <span className="flex-1 text-left">{provider.name}</span>
-                            </button>
+                              provider={provider}
+                              isActive={isActive}
+                              isDisabled={isDisabled}
+                              isPending={applyProvider.isPending}
+                              activeProviderId={activeProvider?.id}
+                              providers={providers}
+                              onApplyProvider={handleApplyProvider}
+                              onCloseMenu={handleCloseProviderMenu}
+                              setClaudeProviderEnabled={setClaudeProviderEnabled}
+                              t={t}
+                            />
                           );
                         })}
                       </div>
