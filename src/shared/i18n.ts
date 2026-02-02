@@ -1087,7 +1087,7 @@ export const zhTranslations: Record<string, string> = {
   'Open any webpage with the userscript installed': '打开任意已安装用户脚本的网页',
   'Click the userscript manager icon and select "Enable Web Inspector"':
     '点击油猴图标，选择「启用 Web Inspector」',
-  'Click the 🎯 button on the webpage': '点击网页上的 🎯 按钮',
+  'Click the Enso button on the webpage': '点击网页上的 Enso 按钮',
   'Click on any element to inspect': '点击任意元素进行检查',
   'Element info will be sent to your active agent session': '元素信息将发送到当前活跃的 Agent 会话',
 };
