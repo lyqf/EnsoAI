@@ -11,6 +11,8 @@
 // @grant        GM_setValue
 // @grant        GM_xmlhttpRequest
 // @connect      127.0.0.1
+// @updateURL    https://raw.githubusercontent.com/J3n5en/EnsoAI/main/scripts/web-inspector.user.js
+// @downloadURL  https://raw.githubusercontent.com/J3n5en/EnsoAI/main/scripts/web-inspector.user.js
 // ==/UserScript==
 
 (() => {
