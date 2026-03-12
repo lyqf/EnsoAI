@@ -912,6 +912,15 @@ export function SourceControlPanel({
                 isCheckingOut={checkoutMutation.isPending || checkoutSubmoduleMutation.isPending}
                 size="xs"
               />
+              <GitSyncButton
+                ahead={selectedRepo?.ahead ?? 0}
+                behind={selectedRepo?.behind ?? 0}
+                tracking={selectedRepo?.tracking ?? null}
+                currentBranch={selectedRepo?.branch ?? null}
+                isSyncing={isSyncing || pullMutation.isPending || pushMutation.isPending}
+                onSync={() => selectedRepoPath && handleSync(selectedRepoPath)}
+                onPublish={() => selectedRepoPath && handlePublish(selectedRepoPath)}
+              />
             </div>
 
             <div
